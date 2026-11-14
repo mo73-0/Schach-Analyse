@@ -910,13 +910,18 @@ async function getJson(url, opts) {
   if (!r.ok) throw new Error('HTTP ' + r.status);
   return r.json();
 }
-async function loadChesscom(user) {
+const errText = (src, e) => src + ': ' + (e.name === 'TypeError' ? 'keine Verbindung oder vom Browser blockiert' : e.message);
+// Paging state per account: chess.com walks its monthly archives backwards, Lichess pages with `until`.
+let accState = null;
+async function loadChesscom(user, st) {
   const u = user.toLowerCase();
-  const arch = await getJson(`https://api.chess.com/pub/player/${encodeURIComponent(u)}/games/archives`);
-  const months = (arch.archives || []).slice(-3).reverse();
+  if (!st.archives) {
+    const arch = await getJson(`https://api.chess.com/pub/player/${encodeURIComponent(u)}/games/archives`);
+    st.archives = arch.archives || []; st.idx = st.archives.length - 1;
+  }
   const out = [];
-  for (const m of months) {
-    const d = await getJson(m);
+  while (st.idx >= 0 && out.length < 20) {
+    const d = await getJson(st.archives[st.idx--]);
     for (const g of (d.games || [])) {
       if (!g.pgn || (g.rules && g.rules !== 'chess')) continue;
       const white = (g.white.username || '').toLowerCase() === u;
@@ -924,16 +929,18 @@ async function loadChesscom(user) {
       out.push({ src: 'chess.com', pgn: g.pgn, t: (g.end_time || 0) * 1000, white, me: me.username, op: op.username, opElo: op.rating,
         res: me.result === 'win' ? 'w' : CC_DRAW.includes(me.result) ? 'd' : 'l', tc: g.time_class });
     }
-    if (out.length >= 40) break;
   }
+  st.done = st.idx < 0;
   return out;
 }
-async function loadLichess(user) {
-  const u = user.toLowerCase();
-  const r = await fetch(`https://lichess.org/api/games/user/${encodeURIComponent(user)}?max=40&pgnInJson=true&clocks=true`, { headers: { Accept: 'application/x-ndjson' } });
+async function loadLichess(user, st) {
+  const u = user.toLowerCase(), max = 30;
+  const r = await fetch(`https://lichess.org/api/games/user/${encodeURIComponent(user)}?max=${max}&pgnInJson=true&clocks=true${st.until ? '&until=' + st.until : ''}`, { headers: { Accept: 'application/x-ndjson' } });
   if (r.status === 404) throw new Error('Benutzer nicht gefunden');
   if (!r.ok) throw new Error('HTTP ' + r.status);
   const lines = (await r.text()).split('\n').filter(Boolean).map(l => JSON.parse(l));
+  if (lines.length) st.until = Math.min(...lines.map(g => g.createdAt)) - 1;
+  st.done = lines.length < max;
   return lines.filter(g => g.pgn && g.variant === 'standard' && g.status !== 'aborted' && g.status !== 'noStart').map(g => {
     const wName = (g.players.white.user && g.players.white.user.name) || 'Anonym', bName = (g.players.black.user && g.players.black.user.name) || 'Anonym';
     const white = wName.toLowerCase() === u;
@@ -942,36 +949,69 @@ async function loadLichess(user) {
       opElo: (white ? g.players.black : g.players.white).rating, res: !g.winner ? 'd' : g.winner === color ? 'w' : 'l', tc: g.speed };
   });
 }
-async function loadAccountGames() {
-  S.ccUser = $('ccUser').value.trim(); S.liUser = $('liUser').value.trim(); saveSettings();
+// Identify a game by its headers (cheap, no move parsing) to mark already analysed games.
+function pgnHeaders(pgn) { const h = {}; pgn.replace(/\[(\w+)\s+"((?:[^"\\]|\\.)*)"\]/g, (_, k, v) => { h[k] = v; return ''; }); return h; }
+function headerKey(h) {
+  if (h.Link) return h.Link;
+  if (h.Site && /lichess\.org\/\w{8}/.test(h.Site)) return h.Site.slice(0, 28);
+  return [h.White, h.Black, h.UTCDate || h.Date, h.UTCTime || h.StartTime || ''].join('|');
+}
+function analysedKeys() { return new Set(storedGames().filter(g => g.ev && g.h).map(g => headerKey(g.h))); }
+// more=false: fresh first page; more=true: next (older) page. Returns error text or ''.
+async function fetchAccountGames(more) {
+  if (!more || !accState) accState = { cc: S.ccUser ? {} : null, li: S.liUser ? {} : null };
+  const jobs = [];
+  if (accState.cc && !accState.cc.done) jobs.push(loadChesscom(S.ccUser, accState.cc).catch(e => { accState.cc.done = true; throw new Error(errText('chess.com', e)); }));
+  if (accState.li && !accState.li.done) jobs.push(loadLichess(S.liUser, accState.li).catch(e => { accState.li.done = true; throw new Error(errText('Lichess', e)); }));
+  const res = await Promise.allSettled(jobs);
+  const fresh = res.filter(r => r.status === 'fulfilled').flatMap(r => r.value);
+  accGames = (more ? accGames.concat(fresh) : fresh).sort((x, y) => y.t - x.t);
+  if (!more) LS.set('sa_accgames', accGames.slice(0, 40));
+  return res.filter(r => r.status === 'rejected').map(r => r.reason.message).join(' · ');
+}
+async function loadAccountGames(more = false) {
+  if (!more) { S.ccUser = $('ccUser').value.trim(); S.liUser = $('liUser').value.trim(); saveSettings(); updateLatestBtn(); }
   const err = $('accErr'); err.style.display = 'none';
   if (!S.ccUser && !S.liUser) { err.textContent = 'Gib mindestens einen Benutzernamen ein.'; err.style.display = 'block'; return; }
-  $('accList').innerHTML = '<div class="hint">Lade Partien …</div>';
-  const jobs = [];
-  if (S.ccUser) jobs.push(loadChesscom(S.ccUser).catch(e => { throw new Error('chess.com: ' + (e.message === 'Failed to fetch' || e.name === 'TypeError' ? 'keine Verbindung oder vom Browser blockiert' : e.message)); }));
-  if (S.liUser) jobs.push(loadLichess(S.liUser).catch(e => { throw new Error('Lichess: ' + (e.message === 'Failed to fetch' || e.name === 'TypeError' ? 'keine Verbindung oder vom Browser blockiert' : e.message)); }));
-  const res = await Promise.allSettled(jobs);
-  accGames = res.filter(r => r.status === 'fulfilled').flatMap(r => r.value).sort((x, y) => y.t - x.t).slice(0, 60);
-  const errs = res.filter(r => r.status === 'rejected').map(r => r.reason.message);
-  if (errs.length) { err.textContent = errs.join(' · '); err.style.display = 'block'; }
-  LS.set('sa_accgames', accGames.map(g => ({ ...g })));
+  if (!more) $('accList').innerHTML = '<div class="hint">Lade Partien …</div>';
+  else { const b = $('bMoreGames'); if (b) { b.disabled = true; b.textContent = 'Lade …'; } }
+  const msg = await fetchAccountGames(more);
+  if (msg) { err.textContent = msg; err.style.display = 'block'; }
   renderAccList();
 }
 function renderAccList() {
   const el = $('accList');
   if (!accGames.length) { el.innerHTML = ''; return; }
-  const fmt = t => { const d = new Date(t); return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }); };
-  el.innerHTML = accGames.map((g, k) => `<div class="g" data-acc="${k}"><span class="res ${g.res}">${g.res === 'w' ? 'S' : g.res === 'l' ? 'N' : '½'}</span><div class="nm">${g.white ? '♔' : '♚'} gegen ${esc(g.op)} ${g.opElo ? `<span class="sub">(${esc(g.opElo)})</span>` : ''}<div class="sub">${esc(TC[g.tc] || g.tc || '')} · ${fmt(g.t)} · ${esc(g.src)}</div></div><span>›</span></div>`).join('');
+  const done = analysedKeys();
+  const fmt = t => { const d = new Date(t); return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' }) + ' ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }); };
+  const canMore = accState && ((accState.cc && !accState.cc.done) || (accState.li && !accState.li.done));
+  el.innerHTML = accGames.map((g, k) => `<div class="g" data-acc="${k}"><span class="res ${g.res}">${g.res === 'w' ? 'S' : g.res === 'l' ? 'N' : '½'}</span><div class="nm">${g.white ? '♔' : '♚'} gegen ${esc(g.op)} ${g.opElo ? `<span class="sub">(${esc(g.opElo)})</span>` : ''}<div class="sub">${esc(TC[g.tc] || g.tc || '')} · ${fmt(g.t)} · ${esc(g.src)}${done.has(headerKey(pgnHeaders(g.pgn))) ? ' · <span style="color:#81b64c">✓ analysiert</span>' : ''}</div></div><span>›</span></div>`).join('') +
+    (canMore ? '<button class="iconbtn" id="bMoreGames" style="width:100%;margin-top:8px">Ältere Partien laden</button>' : '');
+}
+function openAccGame(g) {
+  LS.set('sa_me', g.me.toLowerCase());
+  importOne(g.pgn);
 }
 $('accList').onclick = e => {
+  if (e.target.closest('#bMoreGames')) { loadAccountGames(true); return; }
   const it = e.target.closest('[data-acc]');
   if (!it) return;
   const g = accGames[+it.dataset.acc];
-  if (!g) return;
-  LS.set('sa_me', g.me.toLowerCase());
-  importOne(g.pgn);
+  if (g) openAccGame(g);
 };
-$('bLoadGames').onclick = loadAccountGames;
+$('bLoadGames').onclick = () => loadAccountGames(false);
+// Header button: analyse the newest game of the saved accounts in one tap.
+function updateLatestBtn() { $('btnLatest').style.display = EXTERNAL && (S.ccUser || S.liUser) ? '' : 'none'; }
+$('btnLatest').onclick = async () => {
+  const b = $('btnLatest');
+  if (b.disabled) return;
+  b.disabled = true; const old = b.textContent; b.textContent = '…';
+  const msg = await fetchAccountGames(false);
+  b.disabled = false; b.textContent = old;
+  if (accGames.length) { openAccGame(accGames[0]); return; }
+  $('btnImport').click();
+  if (msg) setTimeout(() => { const err = $('accErr'); err.textContent = msg; err.style.display = 'block'; }, 0);
+};
 if (EXTERNAL) {
   $('accSection').style.display = '';
   $('bPaste').style.display = '';
@@ -981,6 +1021,63 @@ if (EXTERNAL) {
   };
   accGames = LS.get('sa_accgames', []);
 }
+updateLatestBtn();
+
+// ---------- backup / restore (Einstellungen → Erweitert) ----------
+function showAdv(msg) { $('advMsg').textContent = msg; }
+$('bBackup').onclick = async () => {
+  const data = {};
+  for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith('sa_')) data[k] = localStorage.getItem(k); }
+  const json = JSON.stringify({ app: 'schach-analyse', format: 1, created: new Date().toISOString(), data });
+  const name = `schach-analyse-sicherung-${new Date().toISOString().slice(0, 10)}.json`;
+  const file = new File([json], name, { type: 'application/json' });
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: 'Schach-Analyse Sicherung' });
+      showAdv('Sicherung erstellt. Lege die Datei z. B. in „Dateien“ oder iCloud ab.');
+      return;
+    }
+  } catch (e) { if (e.name === 'AbortError') return; }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(file); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  showAdv('Sicherung heruntergeladen: ' + name);
+};
+$('restoreIn').onchange = e => {
+  const f = e.target.files[0];
+  e.target.value = '';
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    let b;
+    try { b = JSON.parse(r.result); } catch (err) { showAdv('Diese Datei ist keine gültige Sicherung.'); return; }
+    if (!b || b.app !== 'schach-analyse' || !b.data || typeof b.data !== 'object') { showAdv('Diese Datei ist keine Sicherung der Schach-Analyse.'); return; }
+    const keys = Object.keys(b.data).filter(k => k.startsWith('sa_') && typeof b.data[k] === 'string');
+    try {
+      for (let i = localStorage.length - 1; i >= 0; i--) { const k = localStorage.key(i); if (k && k.startsWith('sa_')) localStorage.removeItem(k); }
+      keys.forEach(k => localStorage.setItem(k, b.data[k]));
+    } catch (err) { showAdv('Wiederherstellen fehlgeschlagen: ' + err.message); return; }
+    showAdv('Wiederhergestellt – die App lädt neu …');
+    setTimeout(() => location.reload(), 800);
+  };
+  r.readAsText(f);
+};
+
+// ---------- update notice ----------
+async function checkUpdate() {
+  if (!EXTERNAL || !window.SA_VERSION) return;
+  try {
+    const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) return;
+    const j = await r.json();
+    if (j.version && j.version !== window.SA_VERSION) $('updBar').style.display = '';
+  } catch (e) { /* offline */ }
+}
+$('bUpdate').onclick = () => location.reload();
+setTimeout(checkUpdate, 3000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });
+$('verInfo').textContent = window.SA_VERSION ? `Version ${window.SA_VERSION} · ${window.SA_BUILT || ''}` : '';
 $('fileIn').onchange = e => {
   const f = e.target.files[0];
   if (!f) return;

@@ -11,10 +11,11 @@ Hauptnutzer: iPhone, als Homescreen-App (PWA). Alle Texte in der App sind Deutsc
   - `analysis.js` – Zugbewertung (Brillant…Patzer), Genauigkeit, Gewinnwahrscheinlichkeit
   - `pieces.js` – Figuren (cburnett) als SVG-Data-URIs
   - `app.js` – UI, Engine-Steuerung (mehrere parallele Stockfish-Worker), Import von chess.com/Lichess, Töne, Einstellungen
-  - `build.py` – baut `index.html` und setzt die Cache-Version in `sw.js`
+  - `build.py` – baut `index.html`, schreibt `version.json` (App-Version = Hash der Quellen, für den Update-Hinweis) und setzt die Cache-Version in `sw.js`
   - `test_chess.js` – Perft-/PGN-Tests für `chess.js`
 - `index.html` – **generiert**, nie von Hand bearbeiten
-- `sw.js` – Service Worker (Offline): `index.html` network-first, alles andere cache-first
+- `sw.js` – Service Worker (Offline): `index.html` network-first, `version.json` nie gecacht, alles andere cache-first
+- `version.json` – **generiert**; die App vergleicht sie beim Start/Zurückkehren mit ihrer eigenen Version und zeigt „Neue Version verfügbar“
 - `stockfish/` – Stockfish 19 Lite single-threaded (stockfish.js von nmrugg, GPLv3)
 - `manifest.webmanifest`, Icons – PWA
 
@@ -32,7 +33,7 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
 2. `node src/test_chess.js` (wenn `chess.js` geändert) und `python3 src/build.py` ausführen.
 3. Im Browser testen: `python3 -m http.server` im Repo-Root, dann z. B. mit Playwright/Chrome
    (Stockfish braucht http, nicht file://). chess.com/Lichess-Antworten ggf. mocken.
-4. Generierte `index.html` und `sw.js` mit committen, auf `main` pushen → GitHub Pages aktualisiert sich selbst.
+4. Generierte `index.html`, `version.json` und `sw.js` mit committen, auf `main` pushen → GitHub Pages aktualisiert sich selbst.
    Wenn ein in `sw.js` gecachtes Asset neu hinzukommt, auch in `CORE` in `sw.js` eintragen.
 
 ## Wichtige Entscheidungen / Wünsche des Nutzers
@@ -45,4 +46,7 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
 - Töne: Der Nutzer lädt seine Tondateien (Lichess-Standard Move.mp3/Capture.mp3) einmal in den Einstellungen,
   sie liegen nur in `localStorage` (`sa_snd_move`, `sa_snd_capture`). **Diese Töne sind nicht frei lizenziert
   und dürfen nie ins (öffentliche) Repository.** Generell: jede fremde Datei vor dem Commit auf ihre Lizenz prüfen.
-- Daten (Einstellungen, letzte 25 Partien mit Analyse) liegen in `localStorage`.
+- Daten (Einstellungen, letzte 25 Partien mit Analyse, Töne) liegen in `localStorage` (Schlüssel `sa_*`).
+  Sicherung/Wiederherstellung als JSON-Datei unter Einstellungen → „Erweitert“ (bewusst versteckt).
+- Import: Liste der letzten Partien (chess.com-Monatsarchive rückwärts, Lichess mit `until`), „Ältere Partien laden“,
+  bereits analysierte Partien markiert (Abgleich über PGN-Header), Knopf „⚡ Letzte“ im Kopf analysiert die neueste Partie.

@@ -1,6 +1,6 @@
 """Builds ../index.html (GitHub Pages version) from the sources in this folder.
 Run:  python3 src/build.py   (from the repository root)"""
-import os
+import os, hashlib, json, datetime
 here = os.path.dirname(os.path.abspath(__file__))
 t = open(os.path.join(here, 'template.html')).read()
 t = t.replace('<!--HEAD-->',
@@ -8,12 +8,20 @@ t = t.replace('<!--HEAD-->',
   '<link rel="apple-touch-icon" href="apple-touch-icon.png">\n'
   '<meta name="apple-mobile-web-app-title" content="Schach-Analyse">\n'
   '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">')
+# App version = hash of all sources; written into the page and into version.json (update notice).
+src_hash = hashlib.sha256()
+for f in ['template.html', 'chess.js', 'pieces.js', 'analysis.js', 'app.js']:
+    src_hash.update(open(os.path.join(here, f), 'rb').read())
+app_version = src_hash.hexdigest()[:8]
+built = datetime.datetime.now().strftime('%d.%m.%Y %H:%M')
+t = t.replace('/*FLAGS*/', 'window.SA_VERSION=%s;window.SA_BUILT=%s;' % (json.dumps(app_version), json.dumps(built)) + '/*FLAGS*/')
 t = t.replace('/*FLAGS*/', 'window.SA_EXTERNAL=true;if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));')
 for k, f in [('CHESS', 'chess.js'), ('PIECES', 'pieces.js'), ('ANALYSIS', 'analysis.js'), ('APP', 'app.js')]:
     t = t.replace('/*%s*/' % k, open(os.path.join(here, f)).read().replace('</script', '<\\/script'))
 root = os.path.join(here, '..')
 open(os.path.join(root, 'index.html'), 'w').write(t)
-print('index.html', len(t))
+open(os.path.join(root, 'version.json'), 'w').write(json.dumps({'version': app_version, 'built': built}) + '\n')
+print('index.html', len(t), 'version', app_version)
 
 # Offline cache version: hash of every cache-first asset (everything the service worker
 # caches except index.html, which is always fetched fresh). Changing the engine, icons or
