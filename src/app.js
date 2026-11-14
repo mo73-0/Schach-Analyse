@@ -1164,7 +1164,7 @@ function renderSettings() {
     rng('lines', 'Engine-Linien', 1, 3) +
     tog('sound', 'Ton', 'Zug- und Schlaggeräusche') +
     ['move', 'capture'].map(k => `<div class="set"><label>${k === 'move' ? 'Zug-Ton' : 'Schlag-Ton'}<small>${LS.get('sa_snd_' + k, null) ? '✓ geladen' : 'noch keine Datei'}</small></label><label class="iconbtn">Datei wählen<input type="file" accept="audio/*,.mp3,.ogg,.wav,.m4a" data-sndfile="${k}" hidden></label></div>`).join('') +
-    `<div class="hint" id="sndHint">Die Töne sind nicht im öffentlichen Projekt enthalten. Wähle einmal deine Tondateien aus (z.&nbsp;B. Move.mp3 und Capture.mp3) – sie werden nur auf diesem Gerät gespeichert.</div>` +
+    `<div class="hint" id="sndHint"></div>` +
     tog('anim', 'Animationen', 'Figuren gleiten beim Durchklicken') +
     tog('arrow', 'Pfeil für besten Zug') +
     tog('evalbar', 'Bewertungsleiste') +
