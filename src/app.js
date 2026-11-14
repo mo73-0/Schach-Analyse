@@ -1154,16 +1154,6 @@ $('bBackup').onclick = async () => {
   if (r === 'shared') showAdv('Sicherung erstellt. Lege die Datei z. B. in „Dateien“ oder iCloud ab.');
   else if (r === 'downloaded') showAdv('Sicherung heruntergeladen: ' + name);
 };
-// Calibration export: analysed games (with our engine data) + the recently played games list (PGNs),
-// so the analysis can be compared with chess.com's Game Review offline.
-$('bCalib').onclick = async () => {
-  const analysed = storedGames().filter(g => g.ev).map(g => ({ pgn: g.pgn, strength: g.depth, ev: g.ev, st: g.st || null }));
-  const recent = accGames.slice(0, 60).map(g => ({ src: g.src, t: g.t, tc: g.tc, op: g.op, res: g.res, pgn: g.pgn }));
-  const json = JSON.stringify({ app: 'schach-analyse', kind: 'calibration', version: window.SA_VERSION || '', created: new Date().toISOString(),
-    settings: { strength: S.strength }, me: [S.ccUser, S.liUser].filter(Boolean), analysed, recent });
-  const r = await giveFile(`schach-analyse-kalibrierung-${new Date().toISOString().slice(0, 10)}.json`, json, 'Schach-Analyse Kalibrierung');
-  $('calibMsg').textContent = r === 'aborted' ? '' : `Exportiert: ${analysed.length} analysierte und ${recent.length} zuletzt gespielte Partien.`;
-};
 $('restoreIn').onchange = e => {
   const f = e.target.files[0];
   e.target.value = '';

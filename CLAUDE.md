@@ -70,9 +70,10 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
   = −364 + 0.2·Genauigkeit² (gerundet auf 50). Gefittet am 14.11.2026 auf 10 Partien des Nutzers (~700 Elo) gegen
   chess.com-Screenshots: Genauigkeit RMSE 14,6 → 5,6; Zugbewertungen ca. 25 % weniger Abweichung (Kreuzvalidierung bestätigt).
   Kalibrierdaten (PGNs, Screenshots) liegen bewusst **nicht** im Repo (fremde Spielernamen). Für eine Nachkalibrierung:
-  Export + neue Screenshots vom Nutzer anfordern. Gespeicherte Statistiken tragen `st.v = 2`.
-- Kalibrierung an chess.com: „Gespeicherte Analysen“ → „Kalibrierungsdaten exportieren“ (JSON mit analysierten Partien inkl.
-  Engine-Daten und den PGNs der zuletzt gespielten Partien); Vergleich mit chess.com-Review-Screenshots des Nutzers.
+  Export (s. u.) + neue Screenshots vom Nutzer anfordern. Gespeicherte Statistiken tragen `st.v = 2`.
+- Kalibrierungs-Export wurde nach der Kalibrierung auf Wunsch des Nutzers entfernt. Für eine Nachkalibrierung wieder einbauen
+  (Git-Historie, Commit „Export von Kalibrierungsdaten“): JSON mit analysierten Partien inkl. Engine-Daten und den PGNs der
+  zuletzt gespielten Partien, dazu chess.com-Review-Screenshots des Nutzers.
 - Übersicht (`#viewReview`) nach jeder Analyse bzw. beim Öffnen einer analysierten Partie: Spieler, Genauigkeit,
   Bewertungsverlauf, Anzahl je Bewertung (Hauptkategorien, Rest aufklappbar), geschätzte Spielstärke (eigene Heuristik
   aus der Genauigkeit, `estRating`), Zugliste; Knopf „Partieanalyse starten“ ist unten am Bildschirm fixiert (`.rvfoot`, position:fixed – sticky funktioniert wegen overflow-x auf body nicht). Im Brett führt „Übersicht“ zurück.
