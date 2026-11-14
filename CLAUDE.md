@@ -64,4 +64,4 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
   Fortschritt in `sa_train`.
 - Übersicht (`#viewReview`) nach jeder Analyse bzw. beim Öffnen einer analysierten Partie: Spieler, Genauigkeit,
   Bewertungsverlauf, Anzahl je Bewertung (Hauptkategorien, Rest aufklappbar), geschätzte Spielstärke (eigene Heuristik
-  aus der Genauigkeit, `estRating`), Zugliste, „Partie durchgehen“. Im Brett führt „Übersicht“ zurück.
+  aus der Genauigkeit, `estRating`), Zugliste; Knopf „Partie durchgehen“ ist unten am Bildschirm fixiert (`.rvfoot`, position:fixed – sticky funktioniert wegen overflow-x auf body nicht). Im Brett führt „Übersicht“ zurück.
