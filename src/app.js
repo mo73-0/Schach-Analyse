@@ -609,7 +609,7 @@ function renderPlayers() {
       h2 += `<span class="mgrp">${`<i style="background-image:url('${PIECE_SVG[key]}')"></i>`.repeat(lost)}</span>`;
     }
     const adv = color === 'w' ? diff : -diff;
-    return h2 || adv > 0 ? `<span class="mat">${h2}${adv > 0 ? `<b>+${adv}</b>` : ''}</span>` : '';
+    return `<span class="mat">${h2}${adv > 0 ? `<b>+${adv}</b>` : ''}</span>`; // always present: reserves the row, no jump on first capture
   };
   const row = color => {
     const name = color === 'w' ? h.White : h.Black, elo = color === 'w' ? h.WhiteElo : h.BlackElo;

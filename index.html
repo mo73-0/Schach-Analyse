@@ -32,7 +32,8 @@ header h1 span{color:var(--accent)}
 .player .elo{color:var(--muted);font-weight:400}
 .player .pinfo{display:flex;flex-direction:column;min-width:0;line-height:1.15}
 .player .pname{display:flex;gap:6px;min-width:0;white-space:nowrap}.player .pn{overflow:hidden;text-overflow:ellipsis}
-.player .mat{display:flex;align-items:center;gap:4px;min-height:16px;margin-top:2px}
+.player .mat{display:flex;align-items:center;gap:4px;height:16px;margin-top:2px}
+.player{min-height:46px}
 .player .mgrp{display:inline-flex}.player .mgrp i{width:15px;height:15px;background-size:100% 100%;margin-right:-7px;display:block;opacity:.85}
 .player .mgrp i:last-child{margin-right:0}
 .player .mat b{font-size:12px;color:var(--muted);font-weight:700;margin-left:2px}
@@ -311,7 +312,7 @@ header .iconbtn{white-space:nowrap}
   </details>
 </div></div>
 
-<script>window.SA_VERSION="d7927c37";window.SA_BUILT="14.11.2026 23:27";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
+<script>window.SA_VERSION="03e55bd8";window.SA_BUILT="14.11.2026 23:30";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
 <script>// Minimal chess core: board, legal moves, SAN, FEN, PGN. Square 0 = a8, 63 = h1.
 const Chess = (() => {
   const FILES = 'abcdefgh';
@@ -1328,7 +1329,7 @@ function renderPlayers() {
       h2 += `<span class="mgrp">${`<i style="background-image:url('${PIECE_SVG[key]}')"></i>`.repeat(lost)}</span>`;
     }
     const adv = color === 'w' ? diff : -diff;
-    return h2 || adv > 0 ? `<span class="mat">${h2}${adv > 0 ? `<b>+${adv}</b>` : ''}</span>` : '';
+    return `<span class="mat">${h2}${adv > 0 ? `<b>+${adv}</b>` : ''}</span>`; // always present: reserves the row, no jump on first capture
   };
   const row = color => {
     const name = color === 'w' ? h.White : h.Black, elo = color === 'w' ? h.WhiteElo : h.BlackElo;
