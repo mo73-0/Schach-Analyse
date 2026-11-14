@@ -86,3 +86,6 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
   Sicherungsdateien behalten intern `app: 'schach-analyse'` (Kompatibilität mit alten Sicherungen).
 - App-Icon (`icon-512.png`, `icon-192.png`, `apple-touch-icon.png` 180 px): weißer cburnett-König (Kreuz weiß) auf schwarzem Hintergrund,
   unten rechts eigene türkise „!!“-Plakette (Brillant), die den König überlappt. Erzeugt aus einer SVG mit `rsvg-convert`; die SVG liegt nicht im Repo.
+- Eigene Varianten-Züge bekommen ebenfalls eine Bewertung (`classifyVariation`): Stellung vor/nach dem Zug wird mit dem
+  Zeitbudget der Partieanalyse (MultiPV 2) auf einer Helfer-Engine bewertet (Cache `varEv`), dann `A.classify` wie bei
+  Partiezügen. Anzeige: Symbol auf dem Brett, Feedback-Karte („Eigener Zug (Variante)“ / „Bester Zug war …“), Symbole in der Variantenleiste.

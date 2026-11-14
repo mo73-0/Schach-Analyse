@@ -98,7 +98,8 @@ header h1 span{color:var(--accent)}
 .moves .mv.cur{background:#4b4847}
 .moves .mv .badge{width:16px;height:16px;font-size:9px;border:0;box-shadow:none}
 .varbar{display:flex;align-items:center;gap:8px;background:#3d3a35;border-radius:8px;padding:8px 10px;font-size:13px;margin-top:8px}
-.varbar span{flex:1;min-width:0;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.varbar .badge.vb{display:inline-grid;width:14px;height:14px;font-size:8px;margin-right:3px;vertical-align:-2px;border:0;box-shadow:none}
+.varbar>span{flex:1;min-width:0;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-end;justify-content:center;z-index:50}
 .modal.open{display:flex}
 @media(min-width:700px){.modal{align-items:center}}
@@ -313,7 +314,7 @@ body:not([data-view=home]) header h1 .t{display:none}
   </details>
 </div></div>
 
-<script>window.SA_VERSION="dacdc664";window.SA_BUILT="15.11.2026 00:09";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
+<script>window.SA_VERSION="b1ad5904";window.SA_BUILT="15.11.2026 00:30";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
 <script>// Minimal chess core: board, legal moves, SAN, FEN, PGN. Square 0 = a8, 63 = h1.
 const Chess = (() => {
   const FILES = 'abcdefgh';
@@ -1247,7 +1248,7 @@ function renderBoard() {
   const p = C.parseFen(fen);
   const [light, dark] = THEMES[S.theme] || THEMES.green;
   const lm = lastMove();
-  const lmCls = inGamePos() && gamePly() > 0 && game && !game.free ? cls[gamePly() - 1] : null;
+  const lmCls = inGamePos() ? (gamePly() > 0 && game && !game.free ? cls[gamePly() - 1] : null) : varCls();
   const lmColor = lmCls && S.badges ? hexA(A.CLASSES[lmCls.type].color, 0.5) : 'rgba(255,255,51,.5)';
   const targets = selected != null ? C.legal(p).filter(m => m.from === selected) : [];
   const kingInCheck = C.inCheck(p) ? p.b.indexOf(p.turn === 'w' ? 'K' : 'k') : -1;
@@ -1397,8 +1398,73 @@ function renderEngineLines() {
     return `<div class="line"><span class="sc ${L.cpw < 0 ? 'neg' : ''}">${fmtScore(L)}</span><span class="pv" data-line="${k}"><b>${esc(sans[0] || '')}</b> ${esc(sans.slice(1).join(' '))}</span></div>`;
   }).join('');
 }
+// ---------- feedback for own moves in variations ----------
+// Each variation move gets the same classification as game moves: both positions are evaluated with the
+// game's time budget (MultiPV 2) on a helper engine, so live analysis keeps running on the main engine.
+const varEv = new Map(); // fen -> eval
+let varBusy = false;
+function mkMove(p, m) { return { from: m.from, to: m.to, san: C.san(p, m), uci: C.uci(m), piece: m.piece, captured: m.captured || null, promo: m.promo || null }; }
+function varCls() { return variation && variation.idx > 0 ? variation.moves[variation.idx - 1].cls || null : null; }
+async function evalFen(fen) {
+  if (varEv.has(fen)) return varEv.get(fen);
+  const p = C.parseFen(fen), st = C.status(p);
+  let e;
+  if (st === 'mate') e = { terminal: 'mate', lines: [{ cpw: p.turn === 'w' ? -100000 : 100000, mate: 0, pv: [] }] };
+  else if (st === 'stalemate' || st === 'insufficient') e = { terminal: 'draw', lines: [{ cpw: 0, cp: 0, pv: [] }] };
+  else {
+    try { await Engine.init(); } catch (err) { return null; }
+    const en = await getHelper(1).catch(() => Engine);
+    const prof = STRENGTH[game && game.depth] || STRENGTH[S.strength];
+    const r = await en.search({ fen, depth: prof.depth, movetime: prof.ms, multipv: 2, kind: 'var' });
+    if (!r || !r.lines.length) return null;
+    e = { lines: r.lines };
+  }
+  if (varEv.size > 400) varEv.clear();
+  varEv.set(fen, e);
+  return e;
+}
+async function classifyVariation() {
+  if (varBusy) return;
+  varBusy = true;
+  try {
+    for (;;) {
+      const v = variation;
+      if (!v || !game || game.free || game.trainer) break;
+      const k = v.moves.findIndex(m => m.cls === undefined);
+      if (k < 0) break;
+      const mv = v.moves[k], b = v.base;
+      const fens = [...positions.slice(0, b + 1), ...v.fens];
+      const e0 = k === 0 && evals[b] ? evals[b] : await evalFen(fens[b + k]);
+      const e1 = e0 ? await evalFen(fens[b + k + 1]) : null;
+      if (variation !== v || v.moves[k] !== mv) continue; // line changed meanwhile
+      const evs = []; evs[b + k] = e0; evs[b + k + 1] = e1;
+      const prev = k === 0 ? cls[b - 1] : v.moves[k - 1].cls;
+      const pseudo = { headers: game.headers, moves: [...game.moves.slice(0, b), ...v.moves] };
+      mv.cls = e0 && e1 ? A.classify(pseudo, fens, evs, b + k, prev) : null;
+      mv.ev = e1;
+      renderBoard(); renderFeedback(); renderVarbar();
+    }
+  } finally { varBusy = false; }
+}
+function renderVarFeedback(card) {
+  const v = variation, k = v.idx - 1, m = v.moves[k], c = m.cls;
+  const p0 = C.parseFen(k === 0 ? positions[v.base] : v.fens[k - 1]);
+  const label = `${p0.full}${p0.turn === 'w' ? '.' : '…'} ${m.san}`;
+  card.style.display = '';
+  if (!c) { card.innerHTML = `<div class="fb"><div><div class="t">${esc(label)}</div><div class="s">${c === null ? 'Keine Bewertung möglich' : 'Eigener Zug wird bewertet …'}</div></div></div>`; return; }
+  const info = A.CLASSES[c.type];
+  let sub = 'Eigener Zug (Variante)';
+  if (!c.isBest && c.bestUci) {
+    const bs = pvToSan(k === 0 ? positions[v.base] : v.fens[k - 1], [c.bestUci], 1)[0] || '';
+    sub = `Bester Zug war <b style="color:#fff">${esc(bs.replace(/^\d+\.(…)? ?/, ''))}</b>`;
+  } else if (c.type === 'brilliant') sub = 'Starkes Opfer!';
+  else if (c.type === 'great') sub = 'Der einzige gute Zug in dieser Stellung.';
+  const sc = m.ev ? fmtScore(m.ev.lines[0], m.ev.terminal) : '';
+  card.innerHTML = `<div class="fb">${badge(c.type)}<div style="min-width:0"><div class="t" style="color:${info.color}">${esc(m.san)} ${info.phrase}</div><div class="s">${sub}</div></div>${sc ? `<span class="ev ${m.ev.lines[0].cpw < 0 ? 'neg' : ''}">${esc(sc)}</span>` : ''}</div>`;
+}
 function renderFeedback() {
   const card = $('fbCard');
+  if (game && !game.free && !game.trainer && !inGamePos()) { renderVarFeedback(card); return; }
   const p = gamePly();
   if (!game || game.free || !inGamePos() || p === 0) {
     if (game && !game.free && p === 0 && inGamePos()) {
@@ -1442,7 +1508,7 @@ function playLine(pv) {
     const p = C.parseFen(fen);
     const m = C.findMove(p, u);
     if (!m) break;
-    v.moves.push({ from: m.from, to: m.to, san: C.san(p, m), uci: C.uci(m) });
+    v.moves.push(mkMove(p, m));
     fen = C.toFen(C.make(p, m));
     v.fens.push(fen);
   }
@@ -1534,7 +1600,8 @@ function renderVarbar() {
     let s = '';
     if (white) s = num + '. ';
     else if (k === 0) s = num + '… ';
-    s += k === variation.idx - 1 ? `<b style="color:#fff">${esc(m.san)}</b>` : esc(m.san);
+    const bd = m.cls && S.badges ? badge(m.cls.type, 'vb') : '';
+    s += k === variation.idx - 1 ? `<b style="color:#fff">${bd}${esc(m.san)}</b>` : bd + esc(m.san);
     if (!white) num++;
     white = !white;
     return s;
@@ -1561,6 +1628,7 @@ function renderBoardAndInfo() {
   requestLive();
   renderEngineLines(); renderGraph();
   renderMoves();
+  if (variation) classifyVariation();
 }
 function renderAll() {
   if (!game) { freeBoardRender(); return; }
@@ -1621,7 +1689,7 @@ function doMove(m) {
   if (!variation && ply < game.moves.length && game.moves[ply].uci === u) { goto(ply + 1, false); return; }
   if (variation && variation.idx < variation.moves.length && variation.moves[variation.idx].uci === u) { variation.idx++; renderBoardAndInfo(); return; }
   const nf = C.toFen(C.make(p, m));
-  const mv = { from: m.from, to: m.to, san: C.san(p, m), uci: u };
+  const mv = mkMove(p, m);
   if (!variation) variation = { base: ply, moves: [mv], fens: [nf], idx: 1 };
   else {
     variation.moves = variation.moves.slice(0, variation.idx); variation.fens = variation.fens.slice(0, variation.idx);
@@ -1674,7 +1742,7 @@ $('lines').addEventListener('click', e => {
     for (const u of L.pv.slice(0, 8)) {
       const p = C.parseFen(fen), m = C.findMove(p, u);
       if (!m) break;
-      variation.moves.push({ from: m.from, to: m.to, san: C.san(p, m), uci: C.uci(m) });
+      variation.moves.push(mkMove(p, m));
       fen = C.toFen(C.make(p, m)); variation.fens.push(fen);
     }
     variation.idx++;
