@@ -314,7 +314,7 @@ body:not([data-view=home]) header h1 .t{display:none}
   </details>
 </div></div>
 
-<script>window.SA_VERSION="6c96c44b";window.SA_BUILT="15.11.2026 00:38";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
+<script>window.SA_VERSION="55994414";window.SA_BUILT="15.11.2026 00:40";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
 <script>// Minimal chess core: board, legal moves, SAN, FEN, PGN. Square 0 = a8, 63 = h1.
 const Chess = (() => {
   const FILES = 'abcdefgh';
@@ -628,7 +628,7 @@ const Analysis = (() => {
     forced:     { label: 'Erzwungen',      sym: '→',  color: '#96af8b', phrase: 'ist erzwungen' },
     inaccuracy: { label: 'Ungenauigkeit',  sym: '?!', color: '#f7c631', phrase: 'ist eine Ungenauigkeit' },
     mistake:    { label: 'Fehler',         sym: '?',  color: '#ffa459', phrase: 'ist ein Fehler' },
-    miss:       { label: 'Verpasst',       sym: '<svg viewBox="0 0 24 24" width="50%" height="50%" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11" stroke="#fff" stroke-width="3.4" stroke-linecap="round"/></svg>', color: '#ff7769', phrase: 'verpasst eine Chance' },
+    miss:       { label: 'Verpasst',       sym: '<svg viewBox="0 0 24 24" width="66%" height="66%" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/></svg>', color: '#ff7769', phrase: 'verpasst eine Chance' },
     blunder:    { label: 'Patzer',         sym: '??', color: '#fa412d', phrase: 'ist ein Patzer' },
   };
   const ORDER = ['book', 'brilliant', 'great', 'best', 'excellent', 'good', 'inaccuracy', 'mistake', 'miss', 'blunder'];
