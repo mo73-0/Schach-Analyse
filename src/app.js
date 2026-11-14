@@ -1237,7 +1237,6 @@ function estRating(acc, nMoves) {
 const REVIEW_MAIN = ['brilliant', 'great', 'best', 'mistake', 'miss', 'blunder'];
 const REVIEW_MORE = ['book', 'excellent', 'good', 'forced', 'inaccuracy'];
 let reviewMore = false;
-function moveLabel(i) { return `${Math.floor(i / 2) + C.parseFen(game.startFen).full}${C.parseFen(positions[i]).turn === 'w' ? '.' : '…'} ${game.moves[i].san}`; }
 function renderReview() {
   const el = $('viewReview');
   if (!game || game.free) { el.innerHTML = ''; return; }
@@ -1254,8 +1253,6 @@ function renderReview() {
     const cw = wl.filter(c => c.type === t).length, cb = bl.filter(c => c.type === t).length, col = A.CLASSES[t].color;
     return `<div class="rvrow"><span class="rvl">${A.CLASSES[t].label}</span><span class="rvc" style="color:${cw ? col : '#666'}">${cw}</span>${badge(t)}<span class="rvc" style="color:${cb ? col : '#666'}">${cb}</span></div>`;
   };
-  const key = [];
-  cls.forEach((c, i) => { if (c && ['brilliant', 'great', 'blunder', 'miss', 'mistake'].includes(c.type)) key.push(i); });
   const opn = openingName();
   const resText = res === '1-0' ? 'Weiß gewinnt' : res === '0-1' ? 'Schwarz gewinnt' : res === '1/2-1/2' ? 'Remis' : '';
   el.innerHTML = `
@@ -1269,9 +1266,8 @@ function renderReview() {
       <div id="rvMore" style="display:${reviewMore ? '' : 'none'}">${REVIEW_MORE.map(row).join('')}</div>
       <button class="rvtoggle" id="rvToggle" aria-label="Alle Bewertungen">${reviewMore ? '▲' : '▼'}</button>
       <div class="rvsep"></div>
-      <div class="rvrow"><span class="rvl">Spielstärke<small>geschätzt aus dieser Partie</small></span><span class="rvbox w">${rw == null ? '–' : rw}</span><span class="rvbox b">${rb == null ? '–' : rb}</span></div>
+      <div class="rvrow"><span class="rvl">Spielstärke</span><span class="rvbox w">${rw == null ? '–' : rw}</span><span class="rvbox b">${rb == null ? '–' : rb}</span></div>
     </div>
-    ${key.length ? `<div class="card"><h3>Schlüsselmomente</h3><div class="rvkeys">${key.map(i => `<button class="rvkey" data-ply="${i + 1}">${badge(cls[i].type)}<span>${esc(moveLabel(i))}</span></button>`).join('')}</div></div>` : ''}
     <div class="card"><h3>Züge</h3><div class="moves rvmoves" id="rvMoves">${movesGridHtml(-1)}</div></div>
     <button class="primary rvstart" id="rvStart">Partie durchgehen</button>`;
 }
