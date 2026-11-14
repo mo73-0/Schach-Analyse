@@ -1749,10 +1749,12 @@ function renderHomeExtras() { renderTiles(); renderTrend(); renderTrainHome(); r
 let view = 'home';
 function showView(v) {
   view = v;
+  document.body.dataset.view = v;
   $('viewHome').style.display = v === 'home' ? '' : 'none';
   $('viewBoard').style.display = v === 'board' ? '' : 'none';
   $('viewReview').style.display = v === 'review' ? '' : 'none';
   $('btnHome').style.display = v !== 'home' ? '' : 'none';
+  $('bFlip').style.display = v === 'board' ? '' : 'none';
   $('btnReview').style.display = v === 'board' && game && !game.free && cls.some(Boolean) && !analyzing ? '' : 'none';
   if (v !== 'board' || !(game && game.trainer)) { document.body.classList.remove('training'); trainArrow = null; }
   if (v === 'review') renderReview();
