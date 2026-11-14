@@ -55,3 +55,6 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
 - Startbildschirm (`#viewHome`): beim Öffnen der App kein Brett, sondern „Zuletzt gespielt“ mit Plattform (chess.com/Lichess),
   Ergebnis, Gegner und „vor X Std.“; Tipp → Analyse (`#viewBoard`), „‹ Start“ führt zurück. Darunter: PGN einfügen,
   gespeicherte Analysen, Analysebrett. Konten (Benutzernamen) werden auf dem Startbildschirm eingetragen.
+- Übersicht (`#viewReview`) nach jeder Analyse bzw. beim Öffnen einer analysierten Partie: Spieler, Genauigkeit,
+  Bewertungsverlauf, Anzahl je Bewertung (Hauptkategorien, Rest aufklappbar), geschätzte Spielstärke (eigene Heuristik
+  aus der Genauigkeit, `estRating`), Schlüsselmomente, Zugliste, „Partie durchgehen“. Im Brett führt „Übersicht“ zurück.

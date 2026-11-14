@@ -234,10 +234,13 @@ const isStdStart = () => game && game.startFen.split(' ')[0] === C.START.split('
 // Moves count as theory while every position from the start is in the book.
 function applyBook() {
   if (!game || game.free || !isStdStart()) return;
-  for (let i = 0; i < game.moves.length; i++) {
+  let i = 0;
+  for (; i < game.moves.length; i++) {
     if (!BOOK.has(fenHash(positions[i + 1]))) break;
     if (cls[i]) cls[i] = Object.assign({}, cls[i], { type: 'book' });
   }
+  // a theory move is no mistake to punish: re-rate the first move after the book without "Verpasst"
+  if (i > 0 && cls[i] && cls[i].type === 'miss') cls[i] = A.classify(game, positions, evals, i, cls[i - 1]);
 }
 // Name of the deepest named opening position reached up to ply p.
 function openingName(p = positions.length - 1) {
@@ -305,9 +308,10 @@ function loadGame(parsed, pgnText, cached) {
     ply = 0;
   }
   closeModals();
-  showView('board');
+  const ready = !game.free && cached && cached.ev;
+  showView(ready ? 'review' : 'board');
   renderAll();
-  if (!game.free) { saveGame(); if (!(cached && cached.ev)) startAnalysis(); }
+  if (!game.free) { saveGame(); if (!ready) startAnalysis(); }
   else requestLive();
 }
 function guessMe(h) {
@@ -373,6 +377,7 @@ async function startAnalysis() {
   showOverlay(false);
   saveGame();
   renderAll();
+  showView('review');
 }
 function showOverlay(on) { $('anaov').classList.toggle('open', on); if (on) updateOverlay(evals.filter(Boolean).length, positions.length, 0); }
 function updateOverlay(done, tot, msPer) {
@@ -652,14 +657,8 @@ function renderSummary() {
     <div><div class="k">${esc(h.Black || 'Schwarz')}</div><div class="n" style="color:#bbb">${ab == null ? '–' : ab.toFixed(1)}</div><div class="k">Genauigkeit</div></div></div>
     <table class="ctab">${rows}</table>`;
 }
-function renderGraph() {
-  const card = $('graphCard');
-  if (!game || game.free || !evals.some(Boolean)) { card.style.display = 'none'; return; }
-  card.style.display = '';
-  const svg = $('graph');
+function graphSvg(W, H, marker) {
   const n = positions.length - 1 || 1;
-  const W = 400, H = 90;
-  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   const pts = [];
   for (let i = 0; i < positions.length; i++) {
     const e = evals[i];
@@ -673,26 +672,36 @@ function renderGraph() {
     if (!c || !['brilliant', 'great', 'mistake', 'miss', 'blunder'].includes(c.type) || !pts[i + 1]) return;
     h += `<circle cx="${pts[i + 1][0]}" cy="${pts[i + 1][1]}" r="3.6" fill="${A.CLASSES[c.type].color}" stroke="#222" stroke-width=".8"/>`;
   });
-  const cx = gamePly() / n * W;
-  h += `<line x1="${cx}" y1="0" x2="${cx}" y2="${H}" stroke="#81b64c" stroke-width="2"/>`;
-  svg.innerHTML = h;
+  if (marker) { const cx = gamePly() / n * W; h += `<line x1="${cx}" y1="0" x2="${cx}" y2="${H}" stroke="#81b64c" stroke-width="2"/>`; }
+  return h;
+}
+function renderGraph() {
+  const card = $('graphCard');
+  if (!game || game.free || !evals.some(Boolean)) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  const svg = $('graph');
+  svg.setAttribute('viewBox', '0 0 400 90');
+  svg.innerHTML = graphSvg(400, 90, true);
+}
+function movesGridHtml(curPly) {
+  const startBlack = C.parseFen(game.startFen).turn === 'b';
+  let h = '';
+  const cell = i => {
+    const m = game.moves[i], c = cls[i];
+    return `<div class="mv ${curPly === i + 1 ? 'cur' : ''}" data-ply="${i + 1}">${c && !game.free ? badge(c.type) : ''}${esc(m.san)}</div>`;
+  };
+  let i = 0, num = C.parseFen(game.startFen).full;
+  if (startBlack) { h += `<div class="no">${num}.</div><div class="mv">…</div>${cell(0)}`; i = 1; num++; }
+  for (; i < game.moves.length; i += 2, num++) {
+    h += `<div class="no">${num}.</div>${cell(i)}${i + 1 < game.moves.length ? cell(i + 1) : '<div></div>'}`;
+  }
+  return h;
 }
 function renderMoves() {
   const card = $('movesCard');
   if (!game || !game.moves.length) { card.style.display = 'none'; return; }
   card.style.display = '';
-  const startBlack = C.parseFen(game.startFen).turn === 'b';
-  const fullStart = C.parseFen(game.startFen).full;
-  let h = '';
-  const cell = i => {
-    const m = game.moves[i], c = cls[i];
-    return `<div class="mv ${inGamePos() && gamePly() === i + 1 ? 'cur' : ''}" data-ply="${i + 1}">${c && !game.free ? badge(c.type) : ''}${esc(m.san)}</div>`;
-  };
-  let i = 0, num = fullStart;
-  if (startBlack) { h += `<div class="no">${num}.</div><div class="mv">…</div>${cell(0)}`; i = 1; num++; }
-  for (; i < game.moves.length; i += 2, num++) {
-    h += `<div class="no">${num}.</div>${cell(i)}${i + 1 < game.moves.length ? cell(i + 1) : '<div></div>'}`;
-  }
+  const h = movesGridHtml(inGamePos() ? gamePly() : -1);
   const el = $('moves');
   el.innerHTML = h;
   const cur = el.querySelector('.mv.cur');
@@ -1212,13 +1221,80 @@ $('bReanalyze').onclick = () => {
   cancelAll(); evals = []; cls = []; closeModals(); renderAll(); startAnalysis();
 };
 
+// ---------- review overview (shown after the analysis) ----------
+// Rough playing-strength estimate from one game's accuracy (own heuristic, not chess.com's formula).
+function estRating(acc, nMoves) {
+  if (acc == null || nMoves < 8) return null;
+  const pts = [[0, 100], [40, 400], [50, 600], [60, 900], [70, 1250], [75, 1450], [80, 1700], [85, 1950], [90, 2250], [95, 2600], [100, 3000]];
+  for (let i = 1; i < pts.length; i++) {
+    if (acc <= pts[i][0]) {
+      const [x0, y0] = pts[i - 1], [x1, y1] = pts[i];
+      return Math.round((y0 + (acc - x0) / (x1 - x0) * (y1 - y0)) / 50) * 50;
+    }
+  }
+  return 3000;
+}
+const REVIEW_MAIN = ['brilliant', 'great', 'best', 'mistake', 'miss', 'blunder'];
+const REVIEW_MORE = ['book', 'excellent', 'good', 'forced', 'inaccuracy'];
+let reviewMore = false;
+function moveLabel(i) { return `${Math.floor(i / 2) + C.parseFen(game.startFen).full}${C.parseFen(positions[i]).turn === 'w' ? '.' : '…'} ${game.moves[i].san}`; }
+function renderReview() {
+  const el = $('viewReview');
+  if (!game || game.free) { el.innerHTML = ''; return; }
+  const h = game.headers;
+  const wl = [], bl = [];
+  cls.forEach((c, i) => { if (c) (C.parseFen(positions[i]).turn === 'w' ? wl : bl).push(c); });
+  const aw = A.accuracy(wl), ab = A.accuracy(bl);
+  const rw = estRating(aw, wl.length), rb = estRating(ab, bl.length);
+  const res = h.Result || '';
+  const winW = res === '1-0', winB = res === '0-1';
+  const me = LS.get('sa_me', null);
+  const nameCell = (name, color, win) => `<div class="rvp"><div class="rvn${me && name && name.toLowerCase() === me ? ' me' : ''}">${esc(name || (color === 'w' ? 'Weiß' : 'Schwarz'))}</div><div class="rva ${color}${win ? ' win' : ''}" style="background-image:url('${PIECE_SVG[color === 'w' ? 'K' : 'k']}')"></div></div>`;
+  const row = t => {
+    const cw = wl.filter(c => c.type === t).length, cb = bl.filter(c => c.type === t).length, col = A.CLASSES[t].color;
+    return `<div class="rvrow"><span class="rvl">${A.CLASSES[t].label}</span><span class="rvc" style="color:${cw ? col : '#666'}">${cw}</span>${badge(t)}<span class="rvc" style="color:${cb ? col : '#666'}">${cb}</span></div>`;
+  };
+  const key = [];
+  cls.forEach((c, i) => { if (c && ['brilliant', 'great', 'blunder', 'miss', 'mistake'].includes(c.type)) key.push(i); });
+  const opn = openingName();
+  const resText = res === '1-0' ? 'Weiß gewinnt' : res === '0-1' ? 'Schwarz gewinnt' : res === '1/2-1/2' ? 'Remis' : '';
+  el.innerHTML = `
+    <div class="card rv">
+      <div class="rvhead">${esc([resText, h.Termination].filter(Boolean).join(' · '))}${opn ? `<br><span>${esc(opn)}</span>` : ''}</div>
+      <div class="rvrow rvtop"><span class="rvl">Spieler</span>${nameCell(h.White, 'w', winW)}${nameCell(h.Black, 'b', winB)}</div>
+      <div class="rvrow"><span class="rvl">Genauigkeit</span><span class="rvbox w">${aw == null ? '–' : aw.toFixed(1)}</span><span class="rvbox b">${ab == null ? '–' : ab.toFixed(1)}</span></div>
+      <svg class="graph rvgraph" id="rvGraph" viewBox="0 0 400 80" preserveAspectRatio="none">${graphSvg(400, 80, false)}</svg>
+      <div class="rvsep"></div>
+      ${REVIEW_MAIN.map(row).join('')}
+      <div id="rvMore" style="display:${reviewMore ? '' : 'none'}">${REVIEW_MORE.map(row).join('')}</div>
+      <button class="rvtoggle" id="rvToggle" aria-label="Alle Bewertungen">${reviewMore ? '▲' : '▼'}</button>
+      <div class="rvsep"></div>
+      <div class="rvrow"><span class="rvl">Spielstärke<small>geschätzt aus dieser Partie</small></span><span class="rvbox w">${rw == null ? '–' : rw}</span><span class="rvbox b">${rb == null ? '–' : rb}</span></div>
+    </div>
+    ${key.length ? `<div class="card"><h3>Schlüsselmomente</h3><div class="rvkeys">${key.map(i => `<button class="rvkey" data-ply="${i + 1}">${badge(cls[i].type)}<span>${esc(moveLabel(i))}</span></button>`).join('')}</div></div>` : ''}
+    <div class="card"><h3>Züge</h3><div class="moves rvmoves" id="rvMoves">${movesGridHtml(-1)}</div></div>
+    <button class="primary rvstart" id="rvStart">Partie durchgehen</button>`;
+}
+$('viewReview').addEventListener('click', e => {
+  if (e.target.closest('#rvToggle')) { reviewMore = !reviewMore; renderReview(); return; }
+  if (e.target.closest('#rvStart')) { goto(0, false); showView('board'); return; }
+  const k = e.target.closest('[data-ply]');
+  if (k) { showView('board'); goto(+k.dataset.ply, false); return; }
+  const g = e.target.closest('#rvGraph');
+  if (g) { const r = g.getBoundingClientRect(); showView('board'); goto(Math.round((e.clientX - r.left) / r.width * (positions.length - 1)), false); }
+});
+$('btnReview').onclick = () => showView('review');
+
 // ---------- views: start screen <-> board ----------
 let view = 'home';
 function showView(v) {
   view = v;
   $('viewHome').style.display = v === 'home' ? '' : 'none';
   $('viewBoard').style.display = v === 'board' ? '' : 'none';
-  $('btnHome').style.display = v === 'board' ? '' : 'none';
+  $('viewReview').style.display = v === 'review' ? '' : 'none';
+  $('btnHome').style.display = v !== 'home' ? '' : 'none';
+  $('btnReview').style.display = v === 'board' && game && !game.free && cls.some(Boolean) && !analyzing ? '' : 'none';
+  if (v === 'review') renderReview();
   if (v === 'home') {
     Engine.cancel('live');
     renderAccList();
