@@ -10,6 +10,7 @@ Hauptnutzer: iPhone, als Homescreen-App (PWA). Alle Texte in der App sind Deutsc
   - `chess.js` – eigene Schachlogik (Zuggenerator, SAN, FEN, PGN-Parser), Feld 0 = a8
   - `analysis.js` – Zugbewertung (Brillant…Patzer), Genauigkeit, Gewinnwahrscheinlichkeit
   - `pieces.js` – Figuren (cburnett) als SVG-Data-URIs
+  - `openings.js` – **generiert** von `gen_openings.js` aus lichess-org/chess-openings (CC0): Hashes aller Theoriestellungen + Eröffnungsnamen
   - `app.js` – UI, Engine-Steuerung (mehrere parallele Stockfish-Worker), Import von chess.com/Lichess, Töne, Einstellungen
   - `build.py` – baut `index.html`, schreibt `version.json` (App-Version = Hash der Quellen, für den Update-Hinweis) und setzt die Cache-Version in `sw.js`
   - `test_chess.js` – Perft-/PGN-Tests für `chess.js`
@@ -43,6 +44,7 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
 - Analyse-Stärke als Zeitbudget pro Stellung (Schnell/Standard/Gründlich), nicht als feste Tiefe.
 - Kein Zoomen, nur vertikales Scrollen; Layout darf nie breiter als der Bildschirm werden.
 - Figuren gleiten (Animation).
+- Theoriezüge: Züge gelten als „Theoriezug“, solange jede Stellung ab Partiebeginn in der Eröffnungsdatenbank liegt; Eröffnungsname wird angezeigt.
 - Töne: Der Nutzer lädt seine Tondateien (Lichess-Standard Move.mp3/Capture.mp3) einmal in den Einstellungen,
   sie liegen nur in `localStorage` (`sa_snd_move`, `sa_snd_capture`). **Diese Töne sind nicht frei lizenziert
   und dürfen nie ins (öffentliche) Repository.** Generell: jede fremde Datei vor dem Commit auf ihre Lizenz prüfen.

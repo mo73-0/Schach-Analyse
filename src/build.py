@@ -7,16 +7,16 @@ t = t.replace('<!--HEAD-->',
   '<link rel="manifest" href="manifest.webmanifest">\n'
   '<link rel="apple-touch-icon" href="apple-touch-icon.png">\n'
   '<meta name="apple-mobile-web-app-title" content="Schach-Analyse">\n'
-  '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">')
+  '<meta name="apple-mobile-web-app-status-bar-style" content="black">')
 # App version = hash of all sources; written into the page and into version.json (update notice).
 src_hash = hashlib.sha256()
-for f in ['template.html', 'chess.js', 'pieces.js', 'analysis.js', 'app.js']:
+for f in ['template.html', 'chess.js', 'pieces.js', 'analysis.js', 'openings.js', 'app.js']:
     src_hash.update(open(os.path.join(here, f), 'rb').read())
 app_version = src_hash.hexdigest()[:8]
 built = datetime.datetime.now().strftime('%d.%m.%Y %H:%M')
 t = t.replace('/*FLAGS*/', 'window.SA_VERSION=%s;window.SA_BUILT=%s;' % (json.dumps(app_version), json.dumps(built)) + '/*FLAGS*/')
 t = t.replace('/*FLAGS*/', 'if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));')
-for k, f in [('CHESS', 'chess.js'), ('PIECES', 'pieces.js'), ('ANALYSIS', 'analysis.js'), ('APP', 'app.js')]:
+for k, f in [('CHESS', 'chess.js'), ('PIECES', 'pieces.js'), ('ANALYSIS', 'analysis.js'), ('OPENINGS', 'openings.js'), ('APP', 'app.js')]:
     t = t.replace('/*%s*/' % k, open(os.path.join(here, f)).read().replace('</script', '<\\/script'))
 root = os.path.join(here, '..')
 open(os.path.join(root, 'index.html'), 'w').write(t)

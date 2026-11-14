@@ -221,6 +221,35 @@ const liveCache = new Map();
 let liveLines = null, liveDepth = 0, liveFen = null;
 let pendingPromo = null;
 
+// ---------- opening book (lichess-org/chess-openings, CC0) ----------
+const fenHash = fen => {
+  const s = fen.split(' ').slice(0, 4).join(' ');
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0).toString(36);
+};
+const BOOK = new Set(OPENINGS.book.split(','));
+const OPEN_NAMES = new Map(OPENINGS.pos.split(',').map(s => { const [h, i] = s.split(':'); return [h, OPENINGS.names[parseInt(i, 36)]]; }));
+const isStdStart = () => game && game.startFen.split(' ')[0] === C.START.split(' ')[0] && game.startFen.split(' ')[1] === 'w';
+// Moves count as theory while every position from the start is in the book.
+function applyBook() {
+  if (!game || game.free || !isStdStart()) return;
+  for (let i = 0; i < game.moves.length; i++) {
+    if (!BOOK.has(fenHash(positions[i + 1]))) break;
+    if (cls[i]) cls[i] = Object.assign({}, cls[i], { type: 'book' });
+  }
+}
+// Name of the deepest named opening position reached up to ply p.
+function openingName(p = positions.length - 1) {
+  if (!game || !isStdStart()) return '';
+  let name = '';
+  for (let i = 1; i <= p && i < positions.length; i++) {
+    const n = OPEN_NAMES.get(fenHash(positions[i]));
+    if (n) name = n; else if (!BOOK.has(fenHash(positions[i]))) break;
+  }
+  return name;
+}
+
 const gameId = g => {
   const s = g.startFen + '|' + g.moves.map(m => m.uci).join(' ');
   let h = 2166136261;
@@ -355,6 +384,7 @@ function updateOverlay(done, tot, msPer) {
 function classifyAll() {
   cls = [];
   for (let i = 0; i < game.moves.length; i++) cls[i] = A.classify(game, positions, evals, i, cls[i - 1]);
+  applyBook();
 }
 
 let liveTimer = null;
@@ -554,7 +584,7 @@ function renderFeedback() {
     if (game && !game.free && p === 0 && inGamePos()) {
       card.style.display = '';
       const h = game.headers;
-      card.innerHTML = `<div class="fb"><div><div class="t">${esc(h.White || 'Weiß')} – ${esc(h.Black || 'Schwarz')}</div><div class="s">${esc([h.Event, h.Date && h.Date.replace(/\./g, '.'), h.Result].filter(x => x && x !== '?' && x !== '????.??.??').join(' · '))}${h.Termination ? '<br>' + esc(h.Termination) : ''}</div></div></div>`;
+      card.innerHTML = `<div class="fb"><div><div class="t">${esc(h.White || 'Weiß')} – ${esc(h.Black || 'Schwarz')}</div><div class="s">${esc([h.Event, h.Date && h.Date.replace(/\./g, '.'), h.Result].filter(x => x && x !== '?' && x !== '????.??.??').join(' · '))}${h.Termination ? '<br>' + esc(h.Termination) : ''}${openingName() ? '<br>Eröffnung: ' + esc(openingName()) : ''}</div></div></div>`;
     } else card.style.display = 'none';
     return;
   }
@@ -568,7 +598,8 @@ function renderFeedback() {
   const sc = e1 ? fmtScore(e1.lines[0], e1.terminal) : '';
   let sub = '';
   let showBest = false;
-  if (!c.isBest && c.bestUci && c.type !== 'forced') {
+  if (c.type === 'book') sub = esc(openingName(p) || 'Bekannte Eröffnungstheorie');
+  else if (!c.isBest && c.bestUci && c.type !== 'forced') {
     const bs = pvToSan(positions[p - 1], [c.bestUci], 1)[0] || '';
     sub = `Bester Zug war <b style="color:#fff">${esc(bs.replace(/^\d+\.(…)? ?/, ''))}</b>`;
     showBest = true;
@@ -614,7 +645,8 @@ function renderSummary() {
     const col = A.CLASSES[t].color;
     return `<tr><td class="c" style="color:${cw ? col : '#666'}">${cw}</td><td class="l">${badge(t)}${A.CLASSES[t].label}</td><td class="c" style="color:${cb ? col : '#666'}">${cb}</td></tr>`;
   }).join('');
-  card.innerHTML = `<h3>Partie-Review${analyzing ? ' (läuft …)' : ''}</h3>
+  const opn = openingName();
+  card.innerHTML = `<h3>Partie-Review${analyzing ? ' (läuft …)' : ''}</h3>${opn ? `<div class="meta" style="margin:-2px 0 8px"><span>${esc(opn)}</span></div>` : ''}
     <div class="acc"><div class="w"><div class="k">${esc(h.White || 'Weiß')}</div><div class="n">${aw == null ? '–' : aw.toFixed(1)}</div><div class="k">Genauigkeit</div></div>
     <div><div class="k">${esc(h.Black || 'Schwarz')}</div><div class="n" style="color:#bbb">${ab == null ? '–' : ab.toFixed(1)}</div><div class="k">Genauigkeit</div></div></div>
     <table class="ctab">${rows}</table>`;

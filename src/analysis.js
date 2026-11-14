@@ -9,6 +9,7 @@ const Analysis = (() => {
   const moveAccuracy = loss => Math.max(0, Math.min(100, 103.1668 * Math.exp(-0.04354 * loss) - 3.1669));
 
   const CLASSES = {
+    book:       { label: 'Theoriezug',     sym: '<svg viewBox="0 0 24 24" width="64%" height="64%" aria-hidden="true"><path fill="#fff" d="M3 5.2C3 4.5 3.6 4 4.3 4c2.6 0 5 .6 6.7 1.9V20c-1.7-1.2-4.1-1.8-6.7-1.8-.7 0-1.3-.5-1.3-1.2zm18 0V17c0 .7-.6 1.2-1.3 1.2-2.6 0-5 .6-6.7 1.8V5.9C14.7 4.6 17.1 4 19.7 4c.7 0 1.3.5 1.3 1.2z"/></svg>', color: '#a88865', phrase: 'ist ein Theoriezug' },
     brilliant:  { label: 'Brillant',       sym: '!!', color: '#1baca6', phrase: 'ist brillant' },
     great:      { label: 'Großartig',      sym: '!',  color: '#5b8baf', phrase: 'ist ein großartiger Zug' },
     best:       { label: 'Bester Zug',     sym: '★',  color: '#81b64c', phrase: 'ist der beste Zug' },
@@ -20,7 +21,7 @@ const Analysis = (() => {
     miss:       { label: 'Verpasst',       sym: '✕',  color: '#ff7769', phrase: 'verpasst eine Chance' },
     blunder:    { label: 'Patzer',         sym: '??', color: '#fa412d', phrase: 'ist ein Patzer' },
   };
-  const ORDER = ['brilliant', 'great', 'best', 'excellent', 'good', 'forced', 'inaccuracy', 'mistake', 'miss', 'blunder'];
+  const ORDER = ['book', 'brilliant', 'great', 'best', 'excellent', 'good', 'forced', 'inaccuracy', 'mistake', 'miss', 'blunder'];
 
   // Did the move leave a piece en prise for a net material loss of >= 2?
   function isSacrifice(move, fenAfter) {
