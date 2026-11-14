@@ -1688,12 +1688,14 @@ function trainerApply(u) {
   animMove({ from: m.from, to: m.to, san: s });
   const np = C.make(p, m);
   Sound.forMove({ san: s }, C.toFen(np));
-  game.moves.push({ san: s, uci: u, from: m.from, to: m.to, piece: m.piece, captured: m.captured, promo: m.promo || null, fenBefore: fen, fenAfter: C.toFen(np) });
+  const mv = { san: s, uci: u, from: m.from, to: m.to, piece: m.piece, captured: m.captured, promo: m.promo || null, fenBefore: fen, fenAfter: C.toFen(np) };
+  game.moves.push(mv);
   positions.push(C.toFen(np)); ply++;
+  return mv;
 }
 function trainerMove(m) {
   const t = trainTasks[trainIdx];
-  if (!t || trainSt.done) return;
+  if (!t || trainSt.done || trainSt.busy) return;
   const u = C.uci(m);
   if (u === t.best || (t.alt && u === t.alt)) {
     trainSt.done = true; trainArrow = null;
@@ -1708,7 +1710,17 @@ function trainerMove(m) {
     trainSt.tries++;
     const p = C.parseFen(curFen());
     trainSt.msg = `${C.san(p, m)} ist nicht der beste Zug – versuch es nochmal.`;
+    // show the wrong move on the board, then slide the piece back
+    trainSt.busy = true;
+    const mv = trainerApply(u);
     renderBoard(); renderTrainCard();
+    setTimeout(() => {
+      if (!game || !game.trainer || trainTasks[trainIdx] !== t || !mv) { if (trainSt) trainSt.busy = false; return; }
+      game.moves.pop(); positions.pop(); ply--;
+      animMove(mv, true);
+      renderBoard();
+      trainSt.busy = false;
+    }, 750);
   }
 }
 
