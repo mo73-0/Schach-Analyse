@@ -91,3 +91,6 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
   Partiezügen. Anzeige: Symbol auf dem Brett, Feedback-Karte („Eigener Zug (Variante)“ / „Bester Zug war …“), Symbole in der Variantenleiste.
 - Scroll-Sperre: Solange ein Fenster (`.modal.open`, Analyse-Overlay `#anaov`) offen ist, wird `body` per `position:fixed`
   festgehalten (`syncScrollLock`, MutationObserver auf Klassenänderungen) und die Scrollposition beim Schließen wiederhergestellt.
+- Ton nach App-Wechsel (iOS): beim Verlassen (`visibilitychange` hidden / `pagehide`) wird `Sound.stale` gesetzt; bei der
+  nächsten Berührung (`pointerdown`/`touchend`, Capture-Phase) wird ein neuer AudioContext erzeugt und mit einem stillen
+  Sample entsperrt (die dekodierten Buffer werden weiterverwendet). Nur `resume()` reichte auf iOS nicht.

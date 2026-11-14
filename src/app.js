@@ -20,12 +20,26 @@ const saveSettings = () => LS.set('sa_settings', S);
 // ---------- sound (Lichess move/capture samples) ----------
 // modes: [freq Hz, decay time-constant s, amplitude]
 const Sound = {
-  ctx: null, bufs: null, building: null,
+  ctx: null, bufs: null, building: null, stale: false,
+  // Must run inside a user gesture. iOS suspends ("interrupted") the audio context whenever the app is left;
+  // resume() alone often fails afterwards, so after a return to the app a fresh context is created
+  // (decoded AudioBuffers can be reused across contexts) and primed with a silent sample.
   unlock() {
     try {
-      if (!this.ctx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) this.ctx = new AC(); }
-      if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
-      if (this.ctx && !this.bufs && !this.building) this.build();
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      if (this.ctx && (this.stale || this.ctx.state === 'closed' || this.ctx.state === 'interrupted')) {
+        try { this.ctx.close(); } catch (e) { /* ignore */ }
+        this.ctx = null;
+      }
+      this.stale = false;
+      if (!this.ctx) {
+        this.ctx = new AC();
+        const sil = this.ctx.createBufferSource(); sil.buffer = this.ctx.createBuffer(1, 1, 22050);
+        sil.connect(this.ctx.destination); sil.start(0);
+      }
+      if (this.ctx.state !== 'running') this.ctx.resume().catch(() => {});
+      if (!this.bufs && !this.building) this.build();
     } catch (e) { this.ctx = null; }
   },
   async build() {
@@ -74,7 +88,9 @@ const Sound = {
     else this.play('move');
   },
 };
-document.addEventListener('touchend', () => { if (S.sound) Sound.unlock(); }, { passive: true });
+['touchend', 'pointerdown'].forEach(ev => document.addEventListener(ev, () => { if (S.sound) Sound.unlock(); }, { passive: true, capture: true }));
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') Sound.stale = true; });
+window.addEventListener('pagehide', () => { Sound.stale = true; });
 // block pinch / double-tap zoom (iOS ignores user-scalable=no)
 ['gesturestart', 'gesturechange', 'gestureend'].forEach(ev => document.addEventListener(ev, e => e.preventDefault(), { passive: false }));
 document.addEventListener('touchmove', e => { if (e.touches.length > 1 || (e.scale && e.scale !== 1)) e.preventDefault(); }, { passive: false });
