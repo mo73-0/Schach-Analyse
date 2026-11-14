@@ -27,10 +27,17 @@ header h1 span{color:var(--accent)}
 .player .av{width:28px;height:28px;border-radius:4px;display:grid;place-items:center;font-size:18px}
 .player .av.w{background:#fff;color:#000}.player .av.b{background:#000;color:#fff;border:1px solid #555}
 .player .elo{color:var(--muted);font-weight:400}
+.player .pinfo{display:flex;flex-direction:column;min-width:0;line-height:1.15}
+.player .pname{display:flex;gap:6px;min-width:0;white-space:nowrap}.player .pn{overflow:hidden;text-overflow:ellipsis}
+.player .mat{display:flex;align-items:center;gap:4px;min-height:16px;margin-top:2px}
+.player .mgrp{display:inline-flex}.player .mgrp i{width:15px;height:15px;background-size:100% 100%;margin-right:-7px;display:block;opacity:.85}
+.player .mgrp i:last-child{margin-right:0}
+.player .mat b{font-size:12px;color:var(--muted);font-weight:700;margin-left:2px}
 .player .clk{margin-left:auto;background:var(--panel);padding:3px 8px;border-radius:4px;font-variant-numeric:tabular-nums;color:var(--muted);font-weight:600}
 .boardrow{display:flex;gap:6px;align-items:stretch}
 .evalbar{width:22px;flex:none;background:#403d39;border-radius:3px;position:relative;overflow:hidden}
 .evalbar .fill{position:absolute;left:0;right:0;bottom:0;background:#fff;transition:height .35s ease}
+.evalbar .fill[style*="height: 100%"],.evalbar .fill[style*="height: 0%"]{border-radius:0}
 .evalbar .lbl{font-variant-numeric:tabular-nums;position:absolute;left:0;right:0;font-size:10px;font-weight:700;text-align:center;z-index:2}
 .evalbar .lbl.top{top:4px;color:#fff}.evalbar .lbl.bot{bottom:4px;color:#403d39}
 .boardwrap{touch-action:pan-y;position:relative;flex:1;min-width:0;max-width:calc(100vh - 190px);aspect-ratio:1;border-radius:3px;overflow:hidden;user-select:none;-webkit-user-select:none;touch-action:manipulation}

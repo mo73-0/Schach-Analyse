@@ -43,7 +43,8 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
   Live-Engine nur für eigene Varianten.
 - Analyse-Stärke als Zeitbudget pro Stellung (Schnell/Standard/Gründlich), nicht als feste Tiefe.
 - Kein Zoomen, nur vertikales Scrollen; Layout darf nie breiter als der Bildschirm werden.
-- Figuren gleiten (Animation).
+- Figuren gleiten (Animation). Unter den Spielernamen: geschlagene Figuren (eigene cburnett-SVGs) + Materialvorsprung „+N“.
+- Bewertungsleiste: bei erzwungenem Matt (und im Matt) komplett gefüllt.
 - Theoriezüge: Züge gelten als „Theoriezug“, solange jede Stellung ab Partiebeginn in der Eröffnungsdatenbank liegt; Eröffnungsname wird angezeigt.
 - Töne: Der Nutzer lädt seine Tondateien (Lichess-Standard Move.mp3/Capture.mp3) einmal in den Einstellungen,
   sie liegen nur in `localStorage` (`sa_snd_move`, `sa_snd_capture`). **Diese Töne sind nicht frei lizenziert

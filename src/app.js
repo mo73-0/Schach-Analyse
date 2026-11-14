@@ -559,7 +559,13 @@ function renderEvalBar() {
   bar.style.display = S.evalbar ? '' : 'none';
   const cl = currentLines();
   let w = 50, txt = '';
-  if (cl && cl.lines[0]) { w = A.winPct(cl.lines[0].cpw); txt = fmtScore(cl.lines[0], cl.terminal).replace('+', ''); }
+  if (cl && cl.lines[0]) {
+    const L = cl.lines[0];
+    // forced mate (or a mated position) fills the bar completely
+    const mateSide = cl.terminal === 'mate' ? Math.sign(L.cpw) : L.mate != null && L.mate !== 0 ? Math.sign(L.mate) : 0;
+    w = mateSide ? (mateSide > 0 ? 100 : 0) : A.winPct(L.cpw);
+    txt = fmtScore(L, cl.terminal).replace('+', '');
+  }
   // bar shows white from bottom (or top if flipped)
   const fill = $('evalfill');
   fill.style.height = w + '%';
@@ -586,10 +592,29 @@ function renderPlayers() {
     }
     return c ? c.replace(/^0:/, '').replace(/\.\d+$/, '') : '';
   };
+  // material: pieces each side has captured (missing from the opponent's starting set) + point difference
+  const board = C.parseFen(curFen()).b;
+  const VAL = { p: 1, n: 3, b: 3, r: 5, q: 9 }, START = { p: 8, n: 2, b: 2, r: 2, q: 1 };
+  const have = { w: {}, b: {} };
+  for (const x of board) if (x && x.toLowerCase() !== 'k') { const c = x === x.toUpperCase() ? 'w' : 'b', t = x.toLowerCase(); have[c][t] = (have[c][t] || 0) + 1; }
+  const points = c => Object.entries(have[c]).reduce((s, [t, n]) => s + VAL[t] * n, 0);
+  const diff = points('w') - points('b');
+  const matHtml = color => {
+    const opp = color === 'w' ? 'b' : 'w';
+    let h2 = '';
+    for (const t of ['p', 'b', 'n', 'r', 'q']) {
+      const lost = Math.max(0, START[t] - (have[opp][t] || 0));
+      if (!lost) continue;
+      const key = opp === 'w' ? t.toUpperCase() : t;
+      h2 += `<span class="mgrp">${`<i style="background-image:url('${PIECE_SVG[key]}')"></i>`.repeat(lost)}</span>`;
+    }
+    const adv = color === 'w' ? diff : -diff;
+    return h2 || adv > 0 ? `<span class="mat">${h2}${adv > 0 ? `<b>+${adv}</b>` : ''}</span>` : '';
+  };
   const row = color => {
     const name = color === 'w' ? h.White : h.Black, elo = color === 'w' ? h.WhiteElo : h.BlackElo;
     const ck = clockOf(color);
-    return `<span class="av ${color}">${color === 'w' ? '♔' : '♚'}</span><span>${esc(name || (color === 'w' ? 'Weiß' : 'Schwarz'))}</span>${elo && elo !== '?' ? `<span class="elo">(${esc(elo)})</span>` : ''}${ck ? `<span class="clk">${esc(ck)}</span>` : ''}`;
+    return `<span class="av ${color}">${color === 'w' ? '♔' : '♚'}</span><span class="pinfo"><span class="pname"><span class="pn">${esc(name || (color === 'w' ? 'Weiß' : 'Schwarz'))}</span>${elo && elo !== '?' ? `<span class="elo">(${esc(elo)})</span>` : ''}</span>${matHtml(color)}</span>${ck ? `<span class="clk">${esc(ck)}</span>` : ''}`;
   };
   $('pTop').innerHTML = row(flipped ? 'w' : 'b');
   $('pBot').innerHTML = row(flipped ? 'b' : 'w');
