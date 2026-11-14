@@ -1334,9 +1334,7 @@ function estRating(acc, nMoves) {
   if (acc == null || nMoves < 8) return null;
   return Math.max(100, Math.min(3000, Math.round((-364 + 0.2 * acc * acc) / 50) * 50));
 }
-const REVIEW_MAIN = ['brilliant', 'great', 'best', 'mistake', 'miss', 'blunder'];
-const REVIEW_MORE = ['book', 'excellent', 'good', 'inaccuracy'];
-let reviewMore = false;
+const REVIEW_ROWS = ['brilliant', 'great', 'best', 'excellent', 'good', 'book', 'inaccuracy', 'mistake', 'miss', 'blunder'];
 function renderReview() {
   const el = $('viewReview');
   if (!game || game.free) { el.innerHTML = ''; return; }
@@ -1362,9 +1360,7 @@ function renderReview() {
       <div class="rvrow"><span class="rvl">Genauigkeit</span><span class="rvbox w">${aw == null ? '–' : aw.toFixed(1)}</span><span class="rvbox b">${ab == null ? '–' : ab.toFixed(1)}</span></div>
       <svg class="graph rvgraph" id="rvGraph" viewBox="0 0 400 80" preserveAspectRatio="none">${graphSvg(400, 80, false)}</svg>
       <div class="rvsep"></div>
-      ${REVIEW_MAIN.map(row).join('')}
-      <div id="rvMore" style="display:${reviewMore ? '' : 'none'}">${REVIEW_MORE.map(row).join('')}</div>
-      <button class="rvtoggle" id="rvToggle" aria-label="Alle Bewertungen">${reviewMore ? '▲' : '▼'}</button>
+      ${REVIEW_ROWS.map(row).join('')}
       <div class="rvsep"></div>
       <div class="rvrow"><span class="rvl">Spielstärke</span><span class="rvbox w">${rw == null ? '–' : rw}</span><span class="rvbox b">${rb == null ? '–' : rb}</span></div>
     </div>
@@ -1372,7 +1368,6 @@ function renderReview() {
     <div class="rvfoot"><button class="primary rvstart" id="rvStart">Partieanalyse starten</button></div>`;
 }
 $('viewReview').addEventListener('click', e => {
-  if (e.target.closest('#rvToggle')) { reviewMore = !reviewMore; renderReview(); return; }
   if (e.target.closest('#rvStart')) { goto(0, false); showView('board'); return; }
   const k = e.target.closest('[data-ply]');
   if (k) { showView('board'); goto(+k.dataset.ply, false); return; }
