@@ -1,5 +1,5 @@
 // Offline support: app shell network-first (so updates arrive), engine/icons cache-first.
-const CACHE = 'sa-f5ff046020';
+const CACHE = 'sa-43a493a842';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png',
   './stockfish/stockfish-19-lite-single.js', './stockfish/stockfish-19-lite-single.wasm'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE)).then(() => self.skipWaiting())); });

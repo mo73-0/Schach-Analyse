@@ -84,3 +84,5 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
   Matt/Patt/sonst Aufgabe, „Time forfeit“ → auf Zeit).
 - App-Name „Zugzwang“ (Titel, Manifest, Homescreen). Der Name steht oben nur auf dem Startbildschirm, in Übersicht/Brett nicht.
   Sicherungsdateien behalten intern `app: 'schach-analyse'` (Kompatibilität mit alten Sicherungen).
+- App-Icon (`icon-512.png`, `icon-192.png`, `apple-touch-icon.png` 180 px): weißer cburnett-König auf 2×2-Brett (#ebecd0/#779556)
+  mit eigener türkiser „!!“-Plakette (Brillant). Erzeugt aus einer SVG mit `rsvg-convert`; die SVG liegt nicht im Repo.
