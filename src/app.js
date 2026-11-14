@@ -681,7 +681,7 @@ function renderSummary() {
   const rows = A.ORDER.map(t => {
     const cw = wl.filter(c => c.type === t).length, cb = bl.filter(c => c.type === t).length;
     const col = A.CLASSES[t].color;
-    return `<tr><td class="c" style="color:${cw ? col : '#666'}">${cw}</td><td class="l">${badge(t)}${A.CLASSES[t].label}</td><td class="c" style="color:${cb ? col : '#666'}">${cb}</td></tr>`;
+    return `<tr><td class="c" style="color:${cw ? col : '#666'}">${cw}</td><td class="l"><span class="lw">${badge(t)}${A.CLASSES[t].label}</span></td><td class="c" style="color:${cb ? col : '#666'}">${cb}</td></tr>`;
   }).join('');
   const opn = openingName();
   card.innerHTML = `<h3>Partie-Review${analyzing ? ' (läuft …)' : ''}</h3>${opn ? `<div class="meta" style="margin:-2px 0 8px"><span>${esc(opn)}</span></div>` : ''}

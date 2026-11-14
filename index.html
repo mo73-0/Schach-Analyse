@@ -78,7 +78,8 @@ header h1 span{color:var(--accent)}
 .ctab{width:100%;border-collapse:collapse;font-size:14px}
 .ctab td{padding:4px 2px}
 .ctab td.c{text-align:center;font-weight:800;width:44px}
-.ctab td.l{display:flex;align-items:center;gap:8px}
+.ctab td.l{text-align:center}
+.ctab .lw{display:inline-flex;align-items:center;gap:8px;width:150px;text-align:left}
 .ctab .badge{width:22px;height:22px;font-size:11px}
 .graph{width:100%;height:90px;display:block;border-radius:6px;cursor:pointer;touch-action:manipulation}
 .moves{display:grid;grid-template-columns:36px 1fr 1fr;font-size:14px;max-height:340px;overflow:auto}
@@ -304,7 +305,7 @@ header .iconbtn{white-space:nowrap}
   </details>
 </div></div>
 
-<script>window.SA_VERSION="fb264056";window.SA_BUILT="14.11.2026 22:19";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
+<script>window.SA_VERSION="25b984f5";window.SA_BUILT="14.11.2026 22:21";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
 <script>// Minimal chess core: board, legal moves, SAN, FEN, PGN. Square 0 = a8, 63 = h1.
 const Chess = (() => {
   const FILES = 'abcdefgh';
@@ -1371,7 +1372,7 @@ function renderSummary() {
   const rows = A.ORDER.map(t => {
     const cw = wl.filter(c => c.type === t).length, cb = bl.filter(c => c.type === t).length;
     const col = A.CLASSES[t].color;
-    return `<tr><td class="c" style="color:${cw ? col : '#666'}">${cw}</td><td class="l">${badge(t)}${A.CLASSES[t].label}</td><td class="c" style="color:${cb ? col : '#666'}">${cb}</td></tr>`;
+    return `<tr><td class="c" style="color:${cw ? col : '#666'}">${cw}</td><td class="l"><span class="lw">${badge(t)}${A.CLASSES[t].label}</span></td><td class="c" style="color:${cb ? col : '#666'}">${cb}</td></tr>`;
   }).join('');
   const opn = openingName();
   card.innerHTML = `<h3>Partie-Review${analyzing ? ' (läuft …)' : ''}</h3>${opn ? `<div class="meta" style="margin:-2px 0 8px"><span>${esc(opn)}</span></div>` : ''}
