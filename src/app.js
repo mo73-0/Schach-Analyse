@@ -274,6 +274,40 @@ function gameStats(g, pos, ev, cl) {
   });
   return { v: 2, aw: A.accuracy(wl), ab: A.accuracy(bl), me, tr };
 }
+// German result sentence from Result/Termination headers (chess.com: "X won by checkmate", Lichess: "Normal", "Time forfeit").
+function resultText(h, lastFen) {
+  const res = h.Result || '', term = (h.Termination || '').trim();
+  const winner = res === '1-0' ? (h.White || 'Weiß') : res === '0-1' ? (h.Black || 'Schwarz') : '';
+  const draw = res === '1/2-1/2';
+  const t = term.toLowerCase();
+  let how = '';
+  const m = term.match(/^(.+?) won\b/i);
+  if (/checkmate/.test(t)) how = 'durch Schachmatt';
+  else if (/resign/.test(t)) how = 'durch Aufgabe';
+  else if (/abandon/.test(t)) how = 'durch Spielabbruch';
+  else if (/insufficient material/.test(t)) how = draw ? 'durch Zeitablauf bei ungenügendem Material' : '';
+  else if (/on time|time forfeit|timeout/.test(t)) how = 'auf Zeit';
+  else if (/agreement/.test(t)) how = 'durch Einigung';
+  else if (/repetition/.test(t)) how = 'durch Stellungswiederholung';
+  else if (/stalemate/.test(t)) how = 'durch Patt';
+  else if (/50|fifty/.test(t)) how = 'durch 50-Züge-Regel';
+  else if (/rules infraction/.test(t)) how = 'durch Regelverstoß';
+  if (/insufficient material/.test(t) && !/time/.test(t)) how = 'durch ungenügendes Material';
+  if (!how && (t === 'normal' || !t) && lastFen) {
+    try {
+      const st = C.status(C.parseFen(lastFen));
+      if (st === 'mate') how = 'durch Schachmatt';
+      else if (st === 'stalemate') how = 'durch Patt';
+      else if (st === 'insufficient') how = 'durch ungenügendes Material';
+      else if (st === 'fifty') how = 'durch 50-Züge-Regel';
+      else if (winner && t === 'normal') how = 'durch Aufgabe';
+    } catch (e) {}
+  }
+  const who = winner || (m && !draw ? m[1] : '');
+  if (who) return `${who} gewinnt${how ? ' ' + how : ''}`;
+  if (draw) return `Remis${how ? ' ' + how : ''}`;
+  return res === '*' ? 'Partie läuft' : '';
+}
 // Name of the deepest named opening position reached up to ply p.
 function openingName(p = positions.length - 1) {
   if (!game || !isStdStart()) return '';
@@ -649,7 +683,7 @@ function renderFeedback() {
     if (game && !game.free && p === 0 && inGamePos()) {
       card.style.display = '';
       const h = game.headers;
-      card.innerHTML = `<div class="fb"><div><div class="t">${esc(h.White || 'Weiß')} – ${esc(h.Black || 'Schwarz')}</div><div class="s">${esc([h.Event, h.Date && h.Date.replace(/\./g, '.'), h.Result].filter(x => x && x !== '?' && x !== '????.??.??').join(' · '))}${h.Termination ? '<br>' + esc(h.Termination) : ''}${openingName() ? '<br>Eröffnung: ' + esc(openingName()) : ''}</div></div></div>`;
+      card.innerHTML = `<div class="fb"><div><div class="t">${esc(h.White || 'Weiß')} – ${esc(h.Black || 'Schwarz')}</div><div class="s">${esc([h.Event, h.Date && h.Date.replace(/\./g, '.'), ].filter(x => x && x !== '?' && x !== '????.??.??').join(' · '))}${resultText(h, positions[positions.length - 1]) ? '<br>' + esc(resultText(h, positions[positions.length - 1])) : ''}${openingName() ? '<br>Eröffnung: ' + esc(openingName()) : ''}</div></div></div>`;
     } else card.style.display = 'none';
     return;
   }
@@ -1320,10 +1354,10 @@ function renderReview() {
     return `<div class="rvrow"><span class="rvl">${A.CLASSES[t].label}</span><span class="rvc" style="color:${cw ? col : '#666'}">${cw}</span>${badge(t)}<span class="rvc" style="color:${cb ? col : '#666'}">${cb}</span></div>`;
   };
   const opn = openingName();
-  const resText = res === '1-0' ? 'Weiß gewinnt' : res === '0-1' ? 'Schwarz gewinnt' : res === '1/2-1/2' ? 'Remis' : '';
+  const resText = resultText(h, positions[positions.length - 1]);
   el.innerHTML = `
     <div class="card rv">
-      <div class="rvhead">${esc([resText, h.Termination].filter(Boolean).join(' · '))}${opn ? `<br><span>${esc(opn)}</span>` : ''}</div>
+      <div class="rvhead">${esc(resText)}${opn ? `<br><span>${esc(opn)}</span>` : ''}</div>
       <div class="rvrow rvtop"><span class="rvl">Spieler</span>${nameCell(h.White, 'w', winW)}${nameCell(h.Black, 'b', winB)}</div>
       <div class="rvrow"><span class="rvl">Genauigkeit</span><span class="rvbox w">${aw == null ? '–' : aw.toFixed(1)}</span><span class="rvbox b">${ab == null ? '–' : ab.toFixed(1)}</span></div>
       <svg class="graph rvgraph" id="rvGraph" viewBox="0 0 400 80" preserveAspectRatio="none">${graphSvg(400, 80, false)}</svg>

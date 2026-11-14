@@ -79,3 +79,6 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
 - Übersicht (`#viewReview`) nach jeder Analyse bzw. beim Öffnen einer analysierten Partie: Spieler, Genauigkeit,
   Bewertungsverlauf, Anzahl je Bewertung (Hauptkategorien, Rest aufklappbar), geschätzte Spielstärke (eigene Heuristik
   aus der Genauigkeit, `estRating`), Zugliste; Knopf „Partieanalyse starten“ ist unten am Bildschirm fixiert (`.rvfoot`, position:fixed – sticky funktioniert wegen overflow-x auf body nicht). Im Brett führt „Übersicht“ zurück.
+- Ergebnis-/Abschlusstext (Übersicht-Kopf, Startkarte im Brett) immer Deutsch über `resultText(h, letzteFen)`: übersetzt
+  chess.com-`Termination` („X won by checkmate/on time/…“, „Game drawn by …“) und Lichess („Normal“ → aus Endstellung
+  Matt/Patt/sonst Aufgabe, „Time forfeit“ → auf Zeit).
