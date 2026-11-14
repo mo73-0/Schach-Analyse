@@ -1364,7 +1364,7 @@ function renderReview() {
       <div class="rvsep"></div>
       <div class="rvrow"><span class="rvl">Spielstärke</span><span class="rvbox w">${rw == null ? '–' : rw}</span><span class="rvbox b">${rb == null ? '–' : rb}</span></div>
     </div>
-    <div class="card"><h3>Züge</h3><div class="moves rvmoves" id="rvMoves">${movesGridHtml(-1)}</div></div>
+    <div class="card rv"><h3>Züge</h3><div class="moves rvmoves" id="rvMoves">${movesGridHtml(-1)}</div></div>
     <div class="rvfoot"><button class="primary rvstart" id="rvStart">Partieanalyse starten</button></div>`;
 }
 $('viewReview').addEventListener('click', e => {

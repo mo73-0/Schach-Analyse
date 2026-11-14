@@ -77,7 +77,7 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
   (Git-Historie, Commit „Export von Kalibrierungsdaten“): JSON mit analysierten Partien inkl. Engine-Daten und den PGNs der
   zuletzt gespielten Partien, dazu chess.com-Review-Screenshots des Nutzers.
 - Übersicht (`#viewReview`) nach jeder Analyse bzw. beim Öffnen einer analysierten Partie: Spieler, Genauigkeit,
-  Bewertungsverlauf, Anzahl je Bewertung (alle Kategorien immer sichtbar, Reihenfolge wie chess.com: Brillant … Patzer), geschätzte Spielstärke (eigene Heuristik
+  Bewertungsverlauf, Anzahl je Bewertung (alle Kategorien immer sichtbar, Reihenfolge wie chess.com: Brillant … Patzer), geschätzte Spielstärke (eigene Heuristik; alle Zahlen, Symbole und die Zugliste im selben Raster: Spalte Weiß | Symbol | Schwarz)
   aus der Genauigkeit, `estRating`), Zugliste; Knopf „Partieanalyse starten“ ist unten am Bildschirm fixiert (`.rvfoot`, position:fixed – sticky funktioniert wegen overflow-x auf body nicht). Im Brett führt „Übersicht“ zurück.
 - Ergebnis-/Abschlusstext (Übersicht-Kopf, Startkarte im Brett) immer Deutsch über `resultText(h, letzteFen)`: übersetzt
   chess.com-`Termination` („X won by checkmate/on time/…“, „Game drawn by …“) und Lichess („Normal“ → aus Endstellung

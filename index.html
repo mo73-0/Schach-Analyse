@@ -161,7 +161,7 @@ body:not([data-view=home]) header h1 .t{display:none}
 
 .rvgraph{height:80px;margin:12px 0 4px}
 .rvsep{height:1px;background:#3a3733;margin:8px 0}
-.rvmoves{max-height:260px}
+.rvmoves{max-height:none;grid-template-columns:1fr 84px 22px 84px;column-gap:6px}.rvmoves>:nth-child(3n){grid-column:4}.rvmoves .mv{justify-content:center;padding:5px 2px}
 #viewReview{padding-bottom:96px}
 .rvfoot{position:fixed;left:0;right:0;bottom:0;z-index:40;padding:16px max(10px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));background:linear-gradient(to bottom,rgba(49,46,43,0),var(--bg) 30%)}
 .rvfoot .rvstart{display:block;max-width:560px;margin:0 auto}
@@ -313,7 +313,7 @@ body:not([data-view=home]) header h1 .t{display:none}
   </details>
 </div></div>
 
-<script>window.SA_VERSION="8178cda1";window.SA_BUILT="15.11.2026 00:01";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
+<script>window.SA_VERSION="dacdc664";window.SA_BUILT="15.11.2026 00:04";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
 <script>// Minimal chess core: board, legal moves, SAN, FEN, PGN. Square 0 = a8, 63 = h1.
 const Chess = (() => {
   const FILES = 'abcdefgh';
@@ -2085,7 +2085,7 @@ function renderReview() {
       <div class="rvsep"></div>
       <div class="rvrow"><span class="rvl">Spielstärke</span><span class="rvbox w">${rw == null ? '–' : rw}</span><span class="rvbox b">${rb == null ? '–' : rb}</span></div>
     </div>
-    <div class="card"><h3>Züge</h3><div class="moves rvmoves" id="rvMoves">${movesGridHtml(-1)}</div></div>
+    <div class="card rv"><h3>Züge</h3><div class="moves rvmoves" id="rvMoves">${movesGridHtml(-1)}</div></div>
     <div class="rvfoot"><button class="primary rvstart" id="rvStart">Partieanalyse starten</button></div>`;
 }
 $('viewReview').addEventListener('click', e => {
