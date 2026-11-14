@@ -15,7 +15,7 @@ for f in ['template.html', 'chess.js', 'pieces.js', 'analysis.js', 'app.js']:
 app_version = src_hash.hexdigest()[:8]
 built = datetime.datetime.now().strftime('%d.%m.%Y %H:%M')
 t = t.replace('/*FLAGS*/', 'window.SA_VERSION=%s;window.SA_BUILT=%s;' % (json.dumps(app_version), json.dumps(built)) + '/*FLAGS*/')
-t = t.replace('/*FLAGS*/', 'window.SA_EXTERNAL=true;if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));')
+t = t.replace('/*FLAGS*/', 'if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));')
 for k, f in [('CHESS', 'chess.js'), ('PIECES', 'pieces.js'), ('ANALYSIS', 'analysis.js'), ('APP', 'app.js')]:
     t = t.replace('/*%s*/' % k, open(os.path.join(here, f)).read().replace('</script', '<\\/script'))
 root = os.path.join(here, '..')

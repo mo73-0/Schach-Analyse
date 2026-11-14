@@ -2,7 +2,6 @@
 'use strict';
 const $ = id => document.getElementById(id);
 const C = Chess, A = Analysis;
-const EXTERNAL = !!window.SA_EXTERNAL; // GitHub-Pages build: network import allowed
 const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
@@ -12,7 +11,7 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&am
 // ---------- settings ----------
 const THEMES = { green: ['#ebecd0', '#739552', 'Grün'], brown: ['#f0d9b5', '#b58863', 'Holz'], blue: ['#dee3e6', '#8ca2ad', 'Blau'], gray: ['#e0e0e0', '#9a9a9a', 'Grau'] };
 const STRENGTH = { fast: { label: 'Schnell', ms: 250, depth: 18 }, std: { label: 'Standard', ms: 600, depth: 20 }, deep: { label: 'Gründlich', ms: 1500, depth: 22 } };
-const DEFAULTS = { ccUser: '', liUser: '', sound: true, anim: true, strength: 'std', liveDepth: 18, lines: 3, live: true, arrow: true, evalbar: true, badges: true, coords: true, theme: 'green' };
+const DEFAULTS = { ccUser: '', liUser: '', sound: true, anim: true, strength: 'std', liveDepth: 18, lines: 3, arrow: true, evalbar: true, badges: true, coords: true, theme: 'green' };
 let S = Object.assign({}, DEFAULTS, LS.get('sa_settings', {}));
 S.lines = Math.min(3, Math.max(1, S.lines));
 if (!STRENGTH[S.strength]) S.strength = 'std';
@@ -861,7 +860,6 @@ function closeModals() { document.querySelectorAll('.modal').forEach(m => m.clas
 document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if (e.target === m || e.target.closest('[data-close]')) closeModals(); }));
 $('btnImport').onclick = () => { $('impErr').style.display = 'none'; $('multiPick').innerHTML = ''; renderGameList(); openModal('mImport'); onImportOpen(); };
 function onImportOpen() {
-  if (!EXTERNAL) return;
   $('ccUser').value = S.ccUser || ''; $('liUser').value = S.liUser || '';
   renderAccList();
   if (S.ccUser || S.liUser) loadAccountGames();
@@ -1001,7 +999,7 @@ $('accList').onclick = e => {
 };
 $('bLoadGames').onclick = () => loadAccountGames(false);
 // Header button: analyse the newest game of the saved accounts in one tap.
-function updateLatestBtn() { $('btnLatest').style.display = EXTERNAL && (S.ccUser || S.liUser) ? '' : 'none'; }
+function updateLatestBtn() { $('btnLatest').style.display = (S.ccUser || S.liUser) ? '' : 'none'; }
 $('btnLatest').onclick = async () => {
   const b = $('btnLatest');
   if (b.disabled) return;
@@ -1012,7 +1010,7 @@ $('btnLatest').onclick = async () => {
   $('btnImport').click();
   if (msg) setTimeout(() => { const err = $('accErr'); err.textContent = msg; err.style.display = 'block'; }, 0);
 };
-if (EXTERNAL) {
+{
   $('accSection').style.display = '';
   $('bPaste').style.display = '';
   $('bPaste').onclick = async () => {
@@ -1066,7 +1064,7 @@ $('restoreIn').onchange = e => {
 
 // ---------- update notice ----------
 async function checkUpdate() {
-  if (!EXTERNAL || !window.SA_VERSION) return;
+  if (!window.SA_VERSION) return;
   try {
     const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
     if (!r.ok) return;
