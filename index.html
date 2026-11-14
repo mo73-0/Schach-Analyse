@@ -100,10 +100,10 @@ header h1 span{color:var(--accent)}
 .varbar{display:flex;align-items:center;gap:8px;background:#3d3a35;border-radius:8px;padding:8px 10px;font-size:13px;margin-top:8px}
 .varbar .badge.vb{display:inline-grid;width:14px;height:14px;font-size:8px;margin-right:3px;vertical-align:-2px;border:0;box-shadow:none}
 .varbar>span{flex:1;min-width:0;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-end;justify-content:center;z-index:50}
+.modal{position:fixed;inset:0;overscroll-behavior:contain;background:rgba(0,0,0,.6);display:none;align-items:flex-end;justify-content:center;z-index:50}
 .modal.open{display:flex}
 @media(min-width:700px){.modal{align-items:center}}
-.sheet{background:var(--panel);width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:14px 14px 0 0;padding:16px}
+.sheet{background:var(--panel);width:100%;max-width:560px;max-height:92vh;overflow:auto;overscroll-behavior:contain;border-radius:14px 14px 0 0;padding:16px}
 @media(min-width:700px){.sheet{border-radius:14px}}
 .sheet h2{margin:0 0 10px;font-size:18px;display:flex;justify-content:space-between;align-items:center}
 textarea,input,select{font-size:16px!important}
@@ -314,7 +314,7 @@ body:not([data-view=home]) header h1 .t{display:none}
   </details>
 </div></div>
 
-<script>window.SA_VERSION="55994414";window.SA_BUILT="15.11.2026 00:40";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
+<script>window.SA_VERSION="58ba59fa";window.SA_BUILT="15.11.2026 00:44";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
 <script>// Minimal chess core: board, legal moves, SAN, FEN, PGN. Square 0 = a8, 63 = h1.
 const Chess = (() => {
   const FILES = 'abcdefgh';
@@ -1781,6 +1781,22 @@ document.addEventListener('keydown', e => {
 
 // ---------- modals ----------
 function openModal(id) { $(id).classList.add('open'); }
+// While any sheet/overlay is open the page behind must not scroll (iOS ignores overflow:hidden on body,
+// so the body is pinned with position:fixed and the scroll position restored afterwards).
+let scrollLockY = null;
+function syncScrollLock() {
+  const open = !!document.querySelector('.modal.open, #anaov.open');
+  const b = document.body.style;
+  if (open && scrollLockY == null) {
+    scrollLockY = window.scrollY;
+    Object.assign(b, { position: 'fixed', top: -scrollLockY + 'px', left: '0', right: '0', width: '100%' });
+  } else if (!open && scrollLockY != null) {
+    const y = scrollLockY; scrollLockY = null;
+    Object.assign(b, { position: '', top: '', left: '', right: '', width: '' });
+    window.scrollTo(0, y);
+  }
+}
+new MutationObserver(syncScrollLock).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
 function closeModals() { document.querySelectorAll('.modal').forEach(m => m.classList.remove('open')); }
 document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if (e.target === m || e.target.closest('[data-close]')) closeModals(); }));
 function openPgnModal() { $('impErr').style.display = 'none'; $('multiPick').innerHTML = ''; openModal('mImport'); }

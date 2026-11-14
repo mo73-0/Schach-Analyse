@@ -89,3 +89,5 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
 - Eigene Varianten-Züge bekommen ebenfalls eine Bewertung (`classifyVariation`): Stellung vor/nach dem Zug wird mit dem
   Zeitbudget der Partieanalyse (MultiPV 2) auf einer Helfer-Engine bewertet (Cache `varEv`), dann `A.classify` wie bei
   Partiezügen. Anzeige: Symbol auf dem Brett, Feedback-Karte („Eigener Zug (Variante)“ / „Bester Zug war …“), Symbole in der Variantenleiste.
+- Scroll-Sperre: Solange ein Fenster (`.modal.open`, Analyse-Overlay `#anaov`) offen ist, wird `body` per `position:fixed`
+  festgehalten (`syncScrollLock`, MutationObserver auf Klassenänderungen) und die Scrollposition beim Schließen wiederhergestellt.

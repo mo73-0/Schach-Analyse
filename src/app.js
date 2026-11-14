@@ -1059,6 +1059,22 @@ document.addEventListener('keydown', e => {
 
 // ---------- modals ----------
 function openModal(id) { $(id).classList.add('open'); }
+// While any sheet/overlay is open the page behind must not scroll (iOS ignores overflow:hidden on body,
+// so the body is pinned with position:fixed and the scroll position restored afterwards).
+let scrollLockY = null;
+function syncScrollLock() {
+  const open = !!document.querySelector('.modal.open, #anaov.open');
+  const b = document.body.style;
+  if (open && scrollLockY == null) {
+    scrollLockY = window.scrollY;
+    Object.assign(b, { position: 'fixed', top: -scrollLockY + 'px', left: '0', right: '0', width: '100%' });
+  } else if (!open && scrollLockY != null) {
+    const y = scrollLockY; scrollLockY = null;
+    Object.assign(b, { position: '', top: '', left: '', right: '', width: '' });
+    window.scrollTo(0, y);
+  }
+}
+new MutationObserver(syncScrollLock).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
 function closeModals() { document.querySelectorAll('.modal').forEach(m => m.classList.remove('open')); }
 document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if (e.target === m || e.target.closest('[data-close]')) closeModals(); }));
 function openPgnModal() { $('impErr').style.display = 'none'; $('multiPick').innerHTML = ''; openModal('mImport'); }
