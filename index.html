@@ -147,18 +147,18 @@ body:not([data-view=home]) header h1 .t{display:none}
 .spinning svg{animation:sp .9s linear infinite}
 .rv{padding:14px}
 .rvhead{text-align:center;font-weight:700;margin-bottom:10px}.rvhead span{color:var(--muted);font-weight:500;font-size:13px}
-.rvrow{display:grid;grid-template-columns:1fr 78px 34px 78px;align-items:center;gap:6px;min-height:40px}
-.rvrow .badge{width:28px;height:28px;font-size:13px;justify-self:center}
-.rvtop{grid-template-columns:1fr 112px 112px;margin-bottom:6px}
-.rvl{font-weight:700}.rvl small{display:block;color:var(--muted);font-weight:400;font-size:11px}
-.rvc{text-align:center;font-weight:800;font-size:20px}
+.rvrow{display:grid;grid-template-columns:1fr 64px 28px 64px;align-items:center;gap:6px;min-height:32px}
+.rvrow .badge{width:22px;height:22px;font-size:11px;justify-self:center}
+.rvtop{grid-template-columns:1fr 96px 96px;margin-bottom:6px}
+.rvl{font-weight:600;font-size:15px}.rvl small{display:block;color:var(--muted);font-weight:400;font-size:11px}
+.rvc{text-align:center;font-weight:700;font-size:16px}
 .rvp{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
-.rvn{font-weight:700;font-size:14px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rvn.me{color:var(--accent)}
-.rva{width:64px;height:64px;border-radius:8px;background-size:78%;background-repeat:no-repeat;background-position:center;border:3px solid transparent}
+.rvn{font-weight:700;font-size:13px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rvn.me{color:var(--accent)}
+.rva{width:48px;height:48px;border-radius:7px;background-size:78%;background-repeat:no-repeat;background-position:center;border:3px solid transparent}
 .rva.w{background-color:#ebecd0}.rva.b{background-color:#5b5853}.rva.win{border-color:#81b64c}
-.rvbox{text-align:center;font-weight:800;font-size:20px;border-radius:8px;padding:8px 0}
+.rvbox{text-align:center;font-weight:700;font-size:17px;border-radius:7px;padding:6px 0}
 .rvrow .rvbox{grid-column:span 1}.rvrow>.rvbox.w{background:#fff;color:#000}.rvrow>.rvbox.b{background:#403d39;color:#fff}
-.rvrow:has(.rvbox){grid-template-columns:1fr 112px 112px}
+.rvrow:has(.rvbox){grid-template-columns:1fr 96px 96px}
 .rvgraph{height:80px;margin:12px 0 4px}
 .rvsep{height:1px;background:#3a3733;margin:8px 0}
 .rvtoggle{display:block;margin:0 auto;color:var(--muted);font-size:14px;padding:4px 16px}
@@ -314,7 +314,7 @@ body:not([data-view=home]) header h1 .t{display:none}
   </details>
 </div></div>
 
-<script>window.SA_VERSION="3c492c6b";window.SA_BUILT="14.11.2026 23:52";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
+<script>window.SA_VERSION="7c2f7b97";window.SA_BUILT="14.11.2026 23:55";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
 <script>// Minimal chess core: board, legal moves, SAN, FEN, PGN. Square 0 = a8, 63 = h1.
 const Chess = (() => {
   const FILES = 'abcdefgh';
