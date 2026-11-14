@@ -144,9 +144,9 @@ body:not([data-view=home]) header h1 .t{display:none}
 .spinning svg{animation:sp .9s linear infinite}
 .rv{padding:14px}
 .rvhead{text-align:center;font-weight:700;margin-bottom:10px}.rvhead span{color:var(--muted);font-weight:500;font-size:13px}
-.rvrow{display:grid;grid-template-columns:1fr 64px 28px 64px;align-items:center;gap:6px;min-height:32px}
+.rvrow{display:grid;grid-template-columns:1fr 84px 22px 84px;align-items:center;gap:6px;min-height:32px}
 .rvrow .badge{width:22px;height:22px;font-size:11px;justify-self:center}
-.rvtop{grid-template-columns:1fr 96px 96px;margin-bottom:6px}
+.rvtop{margin-bottom:6px}.rvtop>:last-child,.rvrow:has(.rvbox)>:last-child{grid-column:4}
 .rvl{font-weight:600;font-size:15px}.rvl small{display:block;color:var(--muted);font-weight:400;font-size:11px}
 .rvc{text-align:center;font-weight:700;font-size:16px}
 .rvp{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
@@ -155,7 +155,7 @@ body:not([data-view=home]) header h1 .t{display:none}
 .rva.w{background-color:#ebecd0}.rva.b{background-color:#5b5853}.rva.win{border-color:#81b64c}
 .rvbox{text-align:center;font-weight:700;font-size:17px;border-radius:7px;padding:6px 0}
 .rvrow .rvbox{grid-column:span 1}.rvrow>.rvbox.w{background:#fff;color:#000}.rvrow>.rvbox.b{background:#403d39;color:#fff}
-.rvrow:has(.rvbox){grid-template-columns:1fr 96px 96px}
+
 .rvgraph{height:80px;margin:12px 0 4px}
 .rvsep{height:1px;background:#3a3733;margin:8px 0}
 .rvtoggle{display:block;margin:0 auto;color:var(--muted);font-size:14px;padding:4px 16px}
