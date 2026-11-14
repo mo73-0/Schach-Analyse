@@ -150,6 +150,44 @@ header .iconbtn{white-space:nowrap}
 .rvtoggle{display:block;margin:0 auto;color:var(--muted);font-size:14px;padding:4px 16px}
 .rvmoves{max-height:260px}
 .rvstart{width:100%;margin:4px 0 16px;font-size:17px;padding:14px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;margin:2px 0 10px}
+.tile{background:var(--panel);border-radius:10px;padding:8px 10px;text-align:left;display:flex;flex-direction:column;gap:2px;min-width:0}
+.tile .tl{font-size:12px;color:var(--muted);font-weight:600}
+.tile .tr{font-size:22px;font-weight:800;line-height:1.1}
+.tile .td{font-size:12px;font-weight:700;color:var(--muted)}.tile .td.up{color:#81b64c}.tile .td.dn{color:#e06a5a}
+.tile .srcchip{align-self:flex-start;font-size:10px}
+.bilanz{font-size:13px;color:var(--muted);margin:2px 2px 8px;line-height:1.6}
+.cw{color:#81b64c}.cd{color:#bbb}.cl{color:#e06a5a}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+.chip{background:var(--panel);border-radius:16px;padding:5px 12px;font-size:13px;font-weight:700;color:var(--muted)}
+.chip.on{background:var(--accent);color:#fff}
+.chipsep{flex-basis:100%;height:0}
+.homecard{margin-top:12px}
+.cardhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px}
+.cardhead h3{margin:0}
+.tstat{font-size:13px;color:var(--muted)}
+.spark{width:100%;height:70px;display:block}
+.seg{display:inline-flex;background:var(--panel2);border-radius:8px;padding:2px}
+.seg button{padding:4px 10px;border-radius:6px;font-size:12px;font-weight:700;color:var(--muted)}
+.seg button.on{background:#5b5853;color:#fff}
+.orow{display:grid;grid-template-columns:1fr auto 60px 38px;gap:8px;align-items:center;padding:5px 0;font-size:14px}
+.orow .on{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.orow .oc,.orow .op{color:var(--muted);font-size:12px;text-align:right}
+.obar{height:6px;background:#403d39;border-radius:3px;overflow:hidden}.obar i{display:block;height:100%}
+.trrow{display:flex;align-items:center;gap:10px;justify-content:space-between}
+.trrow .sub{color:var(--muted);font-size:12px}
+.trrow .primary{padding:9px 16px;font-size:15px}
+.rbig{font-size:34px;font-weight:800;margin:-4px 0 8px}
+.rng{margin-bottom:10px}
+.rchart{width:100%;height:auto;display:block;touch-action:none}
+.rtip{font-size:13px;color:var(--muted);min-height:20px;margin:4px 0 8px}
+.ins{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.ins div{background:var(--panel2);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:2px}
+.ins span{font-size:11px;color:var(--muted)}.ins b{font-size:16px}.ins small{color:var(--muted);font-weight:500;font-size:11px}
+#trainCard{display:none}
+.training #trainCard{display:block}
+.training #fbCard,.training #engCard,.training #sumCard,.training #graphCard,.training #movesCard,.training #varbar,.training #evalbar,.training .controls,.training #btnReview,.training #progressWrap{display:none!important}
+#trainCard .tstat{margin:10px 0 0;font-weight:700}#trainCard .tstat.ok{color:#81b64c}#trainCard .tstat.no{color:#e6a23c}
 .homehead{display:flex;align-items:center;justify-content:space-between;margin:6px 2px 4px}
 .homehead h2{font-size:20px;margin:0}
 .accinfo{font-size:13px;color:var(--muted);margin:0 2px 6px}
@@ -158,7 +196,7 @@ header .iconbtn{white-space:nowrap}
 .glist .g .top{display:flex;align-items:baseline;gap:6px}
 .glist .g .ago{margin-left:auto;color:var(--muted);font-size:12px;font-weight:600;white-space:nowrap}
 .srcchip{display:inline-block;font-size:11px;font-weight:800;padding:1px 6px;border-radius:4px;margin-right:4px}
-.srcchip.cc{background:#2f4a22;color:#a9d672}.srcchip.li{background:#3b3b3b;color:#e6e6e6}
+.srcchip.cc{background:#2f4a22;color:#a9d672}.srcchip.li{background:#4a4a4a;color:#e6e6e6}
 .promo{position:absolute;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:20}
 .promo.open{display:flex}
 .promo div{display:flex;background:#fff;border-radius:8px;padding:6px;gap:4px}
@@ -181,10 +219,16 @@ header .iconbtn{white-space:nowrap}
       <div class="acc"><input id="ccUser" placeholder="chess.com-Name" autocapitalize="off" autocorrect="off" spellcheck="false"><input id="liUser" placeholder="Lichess-Name" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
       <button class="primary" id="bLoadGames" style="width:100%">Speichern &amp; Partien laden</button>
     </div>
+    <div class="tiles" id="ratingTiles"></div>
     <div class="homehead"><h2>Zuletzt gespielt</h2><button class="iconbtn" id="bRefresh" aria-label="Aktualisieren"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" style="display:block"><path fill="currentColor" d="M12 4a8 8 0 0 1 7.4 5H17v2h6V5h-2v2.3A10 10 0 1 0 22 13h-2a8 8 0 1 1-8-9z"/></svg></button></div>
     <div class="accinfo" id="accInfo"></div>
     <div class="err" id="accErr"></div>
+    <div class="bilanz" id="bilanz"></div>
+    <div class="chips" id="filterChips"></div>
     <div class="glist" id="accList"></div>
+    <div class="card homecard" id="trainHome" style="display:none"></div>
+    <div class="card homecard" id="trendCard" style="display:none"></div>
+    <div class="card homecard" id="openCard" style="display:none"></div>
     <div class="row homeact"><button class="iconbtn" id="bHomePgn">PGN einfügen</button><button class="iconbtn" id="bHomeSaved">Gespeicherte Analysen</button><button class="iconbtn" id="bHomeFree">Analysebrett</button></div>
   </div>
   <div id="viewReview" style="display:none"></div>
@@ -210,6 +254,7 @@ header .iconbtn{white-space:nowrap}
       <div class="varbar" id="varbar" style="display:none"><span id="vartext"></span><button class="linkbtn" id="bExitVar">Zurück zur Partie</button></div>
     </div>
     <div class="side">
+      <div class="card" id="trainCard"></div>
       <div id="progressWrap" style="display:none"><div class="meta"><span id="progText">Analysiere…</span><span id="progPct"></span></div><div class="progress"><div id="progBar"></div></div></div>
       <div class="card" id="fbCard" style="display:none"></div>
       <div class="card" id="engCard"><h3>Engine</h3><div id="engMeta" class="meta"></div><div id="lines"></div></div>
@@ -235,6 +280,7 @@ header .iconbtn{white-space:nowrap}
   <div class="err" id="impErr"></div>
   <div id="multiPick"></div>
 </div></div>
+<div class="modal" id="mRating"><div class="sheet" id="ratingSheet"></div></div>
 <div class="modal" id="mSaved"><div class="sheet">
   <h2>Gespeicherte Analysen <button class="iconbtn" data-close>✕</button></h2>
   <div class="glist" id="glist"></div>

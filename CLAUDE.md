@@ -55,6 +55,13 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
 - Startbildschirm (`#viewHome`): beim Öffnen der App kein Brett, sondern „Zuletzt gespielt“ mit Plattform (chess.com/Lichess),
   Ergebnis, Gegner und „vor X Std.“; Tipp → Analyse (`#viewBoard`), „‹ Start“ führt zurück. Darunter: PGN einfügen,
   gespeicherte Analysen, Analysebrett. Konten (Benutzernamen) werden auf dem Startbildschirm eingetragen.
+- Startbildschirm-Extras: Wertungs-Kacheln (chess.com `/stats`, Lichess `/api/user`; Tipp → Verlaufsdiagramm mit Insights,
+  Daten 12 Monate: chess.com-Monatsarchive, abgeschlossene Monate kompakt in `localStorage` `sa_cch_*` gecacht, nicht in Sicherung;
+  Lichess `/api/games/user?perfType=…`), Bilanz (heute / letzte 10 / Serie), Filter nach Zeitkontrolle und Plattform,
+  Liste zeigt 10 Partien + „Mehr anzeigen“, Karten „Aus Fehlern lernen“, „Deine Genauigkeit“ (Trend), „Deine Eröffnungen“.
+- Gespeicherte Analysen enthalten `st` (Genauigkeit, eigene Farbe, Trainingsaufgaben = eigene Fehler/Patzer/Verpasst mit bestem Zug);
+  ältere Einträge werden im Hintergrund nachberechnet (`enrichStored`). Trainer: Brett im Modus `game.trainer` (`body.training`),
+  Fortschritt in `sa_train`.
 - Übersicht (`#viewReview`) nach jeder Analyse bzw. beim Öffnen einer analysierten Partie: Spieler, Genauigkeit,
   Bewertungsverlauf, Anzahl je Bewertung (Hauptkategorien, Rest aufklappbar), geschätzte Spielstärke (eigene Heuristik
   aus der Genauigkeit, `estRating`), Zugliste, „Partie durchgehen“. Im Brett führt „Übersicht“ zurück.

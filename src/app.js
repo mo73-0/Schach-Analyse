@@ -230,17 +230,47 @@ const fenHash = fen => {
 };
 const BOOK = new Set(OPENINGS.book.split(','));
 const OPEN_NAMES = new Map(OPENINGS.pos.split(',').map(s => { const [h, i] = s.split(':'); return [h, OPENINGS.names[parseInt(i, 36)]]; }));
-const isStdStart = () => game && game.startFen.split(' ')[0] === C.START.split(' ')[0] && game.startFen.split(' ')[1] === 'w';
+const isStdStartOf = g => g && g.startFen.split(' ')[0] === C.START.split(' ')[0] && g.startFen.split(' ')[1] === 'w';
+const isStdStart = () => isStdStartOf(game);
 // Moves count as theory while every position from the start is in the book.
-function applyBook() {
-  if (!game || game.free || !isStdStart()) return;
+function applyBookTo(g, pos, ev, cl) {
+  if (!g || g.free || !isStdStartOf(g)) return;
   let i = 0;
-  for (; i < game.moves.length; i++) {
-    if (!BOOK.has(fenHash(positions[i + 1]))) break;
-    if (cls[i]) cls[i] = Object.assign({}, cls[i], { type: 'book' });
+  for (; i < g.moves.length; i++) {
+    if (!BOOK.has(fenHash(pos[i + 1]))) break;
+    if (cl[i]) cl[i] = Object.assign({}, cl[i], { type: 'book' });
   }
   // a theory move is no mistake to punish: re-rate the first move after the book without "Verpasst"
-  if (i > 0 && cls[i] && cls[i].type === 'miss') cls[i] = A.classify(game, positions, evals, i, cls[i - 1]);
+  if (i > 0 && cl[i] && cl[i].type === 'miss') cl[i] = A.classify(g, pos, ev, i, cl[i - 1]);
+}
+function classifyGame(g, pos, ev) {
+  const cl = [];
+  for (let i = 0; i < g.moves.length; i++) cl[i] = A.classify(g, pos, ev, i, cl[i - 1]);
+  applyBookTo(g, pos, ev, cl);
+  return cl;
+}
+// Which colour did the app's user play? (matched against saved account names)
+function myColor(h) {
+  const names = [S.ccUser, S.liUser, LS.get('sa_me', null)].filter(Boolean).map(x => x.toLowerCase());
+  if (h && h.White && names.includes(h.White.toLowerCase())) return 'w';
+  if (h && h.Black && names.includes(h.Black.toLowerCase())) return 'b';
+  return null;
+}
+// Per-game statistics + training tasks (own mistakes), stored with the saved analysis.
+function gameStats(g, pos, ev, cl) {
+  const wl = [], bl = [];
+  cl.forEach((c, i) => { if (c) (C.parseFen(pos[i]).turn === 'w' ? wl : bl).push(c); });
+  const me = myColor(g.headers);
+  const tr = [];
+  if (me) cl.forEach((c, i) => {
+    if (!c || !['mistake', 'blunder', 'miss'].includes(c.type) || !c.bestUci) return;
+    if (C.parseFen(pos[i]).turn !== me) return;
+    const ls = ev[i] && ev[i].lines || [];
+    const sg = me === 'w' ? 1 : -1;
+    const alt = ls[1] && ls[1].pv && ls[1].pv[0] && A.winPct(sg * ls[0].cpw) - A.winPct(sg * ls[1].cpw) < 4 ? ls[1].pv[0] : null;
+    tr.push({ ply: i, fen: pos[i], best: c.bestUci, alt, played: g.moves[i].san, type: c.type, pv: (ls[0] && ls[0].pv || []).slice(0, 3) });
+  });
+  return { aw: A.accuracy(wl), ab: A.accuracy(bl), me, tr };
 }
 // Name of the deepest named opening position reached up to ply p.
 function openingName(p = positions.length - 1) {
@@ -280,7 +310,9 @@ function saveGame() {
   if (!game || game.free) return;
   const list = storedGames().filter(g => g.id !== game.id);
   const slim = evals.map(e => e && { t: e.terminal || 0, l: e.lines.map(l => ({ c: l.cpw, m: l.mate == null ? null : l.mate, p: l.pv.slice(0, 10), d: l.depth })) });
-  const entry = { id: game.id, pgn: game.pgn, h: game.headers, date: Date.now(), depth: game.depth, ev: evals.length === positions.length && evals.every(Boolean) ? slim : null };
+  const complete = evals.length === positions.length && evals.every(Boolean);
+  const entry = { id: game.id, pgn: game.pgn, h: game.headers, date: Date.now(), depth: game.depth, ev: complete ? slim : null };
+  if (complete && cls.length) entry.st = gameStats(game, positions, evals, cls);
   list.unshift(entry);
   while (list.length > 25) list.pop();
   setGames(list);
@@ -388,15 +420,14 @@ function updateOverlay(done, tot, msPer) {
   $('anaEta').textContent = left == null ? '' : left > 0 ? `noch ca. ${left >= 60 ? Math.floor(left / 60) + ' min ' : ''}${left % 60} s` : 'gleich fertig …';
 }
 function classifyAll() {
-  cls = [];
-  for (let i = 0; i < game.moves.length; i++) cls[i] = A.classify(game, positions, evals, i, cls[i - 1]);
-  applyBook();
+  cls = classifyGame(game, positions, evals);
 }
 
 let liveTimer = null;
 function requestLive() {
   clearTimeout(liveTimer);
   Engine.cancel('live');
+  if (game && game.trainer) return;
   const fen = curFen();
   liveFen = fen;
   liveLines = null; liveDepth = 0;
@@ -513,7 +544,8 @@ function arrowSvg(from, to, color) {
 function renderArrows() {
   const svg = $('arrows');
   let h = '';
-  if (S.arrow && game) {
+  if (trainArrow) h += arrowSvg(C.sqIdx(trainArrow.slice(0, 2)), C.sqIdx(trainArrow.slice(2, 4)), 'rgba(70,140,230,.85)');
+  else if (S.arrow && game && !game.trainer) {
     const cl = currentLines();
     const u = cl && cl.lines[0] && cl.lines[0].pv[0];
     if (u) h += arrowSvg(C.sqIdx(u.slice(0, 2)), C.sqIdx(u.slice(2, 4)), 'rgba(129,182,76,.82)');
@@ -790,6 +822,7 @@ function doMove(m) {
   const p = C.parseFen(fen);
   const u = C.uci(m);
   selected = null;
+  if (game && game.trainer) { trainerMove(m); return; }
   const sanNow = C.san(p, m);
   animMove({ from: m.from, to: m.to, san: sanNow });
   Sound.forMove({ san: sanNow }, C.toFen(C.make(p, m)));
@@ -961,8 +994,8 @@ async function loadChesscom(user, st) {
       if (!g.pgn || (g.rules && g.rules !== 'chess')) continue;
       const white = (g.white.username || '').toLowerCase() === u;
       const me = white ? g.white : g.black, op = white ? g.black : g.white;
-      out.push({ src: 'chess.com', pgn: g.pgn, t: (g.end_time || 0) * 1000, white, me: me.username, op: op.username, opElo: op.rating,
-        res: me.result === 'win' ? 'w' : CC_DRAW.includes(me.result) ? 'd' : 'l', tc: g.time_class });
+      out.push({ src: 'chess.com', pgn: g.pgn, t: (g.end_time || 0) * 1000, white, me: me.username, op: op.username, opElo: op.rating, myElo: me.rating,
+        res: me.result === 'win' ? 'w' : CC_DRAW.includes(me.result) ? 'd' : 'l', tc: g.time_class, open: openingFamily(g.eco || '') });
     }
   }
   st.done = st.idx < 0;
@@ -970,7 +1003,7 @@ async function loadChesscom(user, st) {
 }
 async function loadLichess(user, st) {
   const u = user.toLowerCase(), max = 30;
-  const r = await fetch(`https://lichess.org/api/games/user/${encodeURIComponent(user)}?max=${max}&pgnInJson=true&clocks=true${st.until ? '&until=' + st.until : ''}`, { headers: { Accept: 'application/x-ndjson' } });
+  const r = await fetch(`https://lichess.org/api/games/user/${encodeURIComponent(user)}?max=${max}&pgnInJson=true&clocks=true&opening=true${st.until ? '&until=' + st.until : ''}`, { headers: { Accept: 'application/x-ndjson' } });
   if (r.status === 404) throw new Error('Benutzer nicht gefunden');
   if (!r.ok) throw new Error('HTTP ' + r.status);
   const lines = (await r.text()).split('\n').filter(Boolean).map(l => JSON.parse(l));
@@ -980,8 +1013,10 @@ async function loadLichess(user, st) {
     const wName = (g.players.white.user && g.players.white.user.name) || 'Anonym', bName = (g.players.black.user && g.players.black.user.name) || 'Anonym';
     const white = wName.toLowerCase() === u;
     const color = white ? 'white' : 'black';
+    const mine = white ? g.players.white : g.players.black;
     return { src: 'Lichess', pgn: g.pgn, t: g.lastMoveAt || g.createdAt, white, me: white ? wName : bName, op: white ? bName : wName,
-      opElo: (white ? g.players.black : g.players.white).rating, res: !g.winner ? 'd' : g.winner === color ? 'w' : 'l', tc: g.speed };
+      opElo: (white ? g.players.black : g.players.white).rating, myElo: mine.rating != null ? mine.rating + (mine.ratingDiff || 0) : null,
+      res: !g.winner ? 'd' : g.winner === color ? 'w' : 'l', tc: g.speed, open: openingFamily(g.opening && g.opening.name || '') };
   });
 }
 // Identify a game by its headers (cheap, no move parsing) to mark already analysed games.
@@ -1010,6 +1045,7 @@ async function loadAccountGames(more = false, fromInputs = false) {
     S.ccUser = $('ccUser').value.trim(); S.liUser = $('liUser').value.trim(); saveSettings();
     if (S.ccUser || S.liUser) $('accCard').style.display = 'none';
     renderAccInfo();
+    fetchRatings();
   }
   const err = $('accErr'); err.style.display = 'none';
   if (!S.ccUser && !S.liUser) { if (fromInputs) { err.textContent = 'Gib mindestens einen Benutzernamen ein.'; err.style.display = 'block'; } return; }
@@ -1043,21 +1079,32 @@ function renderAccInfo() {
 }
 function renderAccList() {
   const el = $('accList');
+  renderFilters();
+  renderBilanz();
+  renderOpenings();
+  renderTiles();
   if (!accGames.length) {
     el.innerHTML = (S.ccUser || S.liUser) && !fetching ? '<div class="hint">Keine Partien gefunden.</div>' : '';
     return;
   }
   const done = analysedKeys();
   const canMore = accState && ((accState.cc && !accState.cc.done) || (accState.li && !accState.li.done));
-  el.innerHTML = accGames.map((g, k) => `<div class="g" data-acc="${k}"><span class="res ${g.res}">${g.res === 'w' ? 'S' : g.res === 'l' ? 'N' : '½'}</span><div class="nm"><div class="top"><span>${g.white ? '♔' : '♚'} gegen ${esc(g.op)} ${g.opElo ? `<span class="sub">(${esc(g.opElo)})</span>` : ''}</span><span class="ago">${timeAgo(g.t)}</span></div><div class="sub"><span class="srcchip ${g.src === 'Lichess' ? 'li' : 'cc'}">${esc(g.src)}</span>${esc(TC[g.tc] || g.tc || '')}${done.has(headerKey(pgnHeaders(g.pgn))) ? ' · <span style="color:#81b64c">✓ analysiert</span>' : ''}</div></div><span>›</span></div>`).join('') +
-    (canMore ? '<button class="iconbtn" id="bMoreGames" style="width:100%;margin-top:8px">Ältere Partien laden</button>' : '');
+  const shown = accGames.map((g, k) => [g, k]).filter(([g]) => passFilter(g));
+  if (!shown.length) { el.innerHTML = '<div class="hint">Keine Partien für diesen Filter.</div>' + (canMore ? '<button class="iconbtn" id="bMoreGames" style="width:100%;margin-top:8px">Ältere Partien laden</button>' : ''); return; }
+  const full = shown.length;
+  const page = shown.slice(0, listLimit);
+  el.innerHTML = page.map(([g, k]) => `<div class="g" data-acc="${k}"><span class="res ${g.res}">${g.res === 'w' ? 'S' : g.res === 'l' ? 'N' : '½'}</span><div class="nm"><div class="top"><span>${g.white ? '♔' : '♚'} gegen ${esc(g.op)} ${g.opElo ? `<span class="sub">(${esc(g.opElo)})</span>` : ''}</span><span class="ago">${timeAgo(g.t)}</span></div><div class="sub"><span class="srcchip ${g.src === 'Lichess' ? 'li' : 'cc'}">${esc(g.src)}</span>${esc(TC[g.tc] || g.tc || '')}${done.has(headerKey(pgnHeaders(g.pgn))) ? ' · <span style="color:#81b64c">✓ analysiert</span>' : ''}</div></div><span>›</span></div>`).join('') +
+    (full > listLimit ? `<button class="iconbtn" id="bShowMore" style="width:100%;margin-top:8px">Mehr anzeigen (${full - listLimit} weitere)</button>`
+      : canMore ? '<button class="iconbtn" id="bMoreGames" style="width:100%;margin-top:8px">Ältere Partien laden</button>' : '');
 }
+let listLimit = 10;
 function openAccGame(g) {
   LS.set('sa_me', g.me.toLowerCase());
   importOne(g.pgn);
 }
 $('accList').onclick = e => {
-  if (e.target.closest('#bMoreGames')) { loadAccountGames(true); return; }
+  if (e.target.closest('#bMoreGames')) { listLimit += 15; loadAccountGames(true); return; }
+  if (e.target.closest('#bShowMore')) { listLimit += 15; renderAccList(); return; }
   const it = e.target.closest('[data-acc]');
   if (!it) return;
   const g = accGames[+it.dataset.acc];
@@ -1086,7 +1133,7 @@ $('btnHome').onclick = () => showView('home');
 function showAdv(msg) { $('advMsg').textContent = msg; }
 $('bBackup').onclick = async () => {
   const data = {};
-  for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith('sa_')) data[k] = localStorage.getItem(k); }
+  for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith('sa_') && !k.startsWith('sa_cch_')) data[k] = localStorage.getItem(k); }
   const json = JSON.stringify({ app: 'schach-analyse', format: 1, created: new Date().toISOString(), data });
   const name = `schach-analyse-sicherung-${new Date().toISOString().slice(0, 10)}.json`;
   const file = new File([json], name, { type: 'application/json' });
@@ -1281,6 +1328,392 @@ $('viewReview').addEventListener('click', e => {
 });
 $('btnReview').onclick = () => showView('review');
 
+// ---------- start screen extras: ratings, filters, balance, trends, openings, training ----------
+const TCL = { bullet: 'Bullet', blitz: 'Blitz', rapid: 'Schnellschach', classical: 'Klassisch', daily: 'Täglich', correspondence: 'Fernschach', ultraBullet: 'UltraBullet' };
+const tcGroup = tc => (['daily', 'classical', 'correspondence'].includes(tc) ? 'long' : tc === 'ultraBullet' ? 'bullet' : tc);
+const TC_GROUPS = [['bullet', 'Bullet'], ['blitz', 'Blitz'], ['rapid', 'Schnell'], ['long', 'Lang']];
+const srcKey = g => (g.src === 'Lichess' ? 'li' : 'cc');
+function passFilter(g) {
+  if (S.fTc && S.fTc !== 'all' && tcGroup(g.tc) !== S.fTc) return false;
+  if (S.fSrc && S.fSrc !== 'all' && srcKey(g) !== S.fSrc) return false;
+  return true;
+}
+function renderFilters() {
+  const el = $('filterChips');
+  const present = new Set(accGames.map(g => tcGroup(g.tc)));
+  if (accGames.length < 2) { el.innerHTML = ''; return; }
+  const chip = (kind, val, label) => `<button class="chip${(S[kind] || 'all') === val ? ' on' : ''}" data-f="${kind}" data-v="${val}">${label}</button>`;
+  let h = chip('fTc', 'all', 'Alle') + TC_GROUPS.filter(([k]) => present.has(k)).map(([k, l]) => chip('fTc', k, l)).join('');
+  if (S.ccUser && S.liUser) h += '<span class="chipsep"></span>' + chip('fSrc', 'all', 'Beide') + chip('fSrc', 'cc', 'chess.com') + chip('fSrc', 'li', 'Lichess');
+  el.innerHTML = h;
+}
+$('filterChips').onclick = e => {
+  const b = e.target.closest('[data-f]');
+  if (!b) return;
+  S[b.dataset.f] = b.dataset.v; saveSettings(); listLimit = 10; renderAccList();
+};
+function renderBilanz() {
+  const el = $('bilanz');
+  const list = accGames.filter(passFilter);
+  if (!list.length) { el.innerHTML = ''; return; }
+  const sc = l => { const w = l.filter(g => g.res === 'w').length, d = l.filter(g => g.res === 'd').length; return `<b class="cw">${w} S</b> · <b class="cd">${d} R</b> · <b class="cl">${l.length - w - d} N</b>`; };
+  const day = new Date(); day.setHours(0, 0, 0, 0);
+  const today = list.filter(g => g.t >= day.getTime());
+  const parts = [];
+  if (today.length) parts.push(`Heute: ${today.length} ${today.length === 1 ? 'Partie' : 'Partien'} · ${sc(today)}`);
+  const last = list.slice(0, 10);
+  parts.push(`Letzte ${last.length}: ${sc(last)}`);
+  let n = 0; while (n < list.length && list[n].res === list[0].res) n++;
+  if (n >= 2 && list[0].res !== 'd') parts.push(`Serie: ${n} ${list[0].res === 'w' ? 'Siege' : 'Niederlagen'} in Folge ${list[0].res === 'w' ? '🔥' : ''}`);
+  el.innerHTML = parts.map(p => `<div>${p}</div>`).join('');
+}
+
+// Opening families: Lichess-style family names from the opening database; chess.com URLs are matched against them.
+const FAMILIES = (() => {
+  const set = new Set(OPENINGS.names.map(n => n.slice(4).split(':')[0].trim()));
+  return [...set].map(n => [n.toLowerCase().replace(/[^a-z]/g, ''), n]).sort((x, y) => y[0].length - x[0].length);
+})();
+function openingFamily(s) {
+  if (!s) return '';
+  if (/^https?:/.test(s)) {
+    const slug = decodeURIComponent(s.split('/openings/')[1] || '').split('...')[0];
+    if (!slug) return '';
+    const norm = slug.toLowerCase().replace(/[^a-z]/g, '');
+    const hit = FAMILIES.find(([k]) => k && norm.startsWith(k));
+    return hit ? hit[1] : slug.split('-').slice(0, 3).join(' ');
+  }
+  return s.split(':')[0].trim();
+}
+let openColor = 'w';
+function renderOpenings() {
+  const el = $('openCard');
+  const list = accGames.filter(g => g.open && passFilter(g));
+  if (list.length < 3) { el.style.display = 'none'; return; }
+  el.style.display = '';
+  const mine = list.filter(g => (openColor === 'w') === !!g.white);
+  const by = new Map();
+  for (const g of mine) { const o = by.get(g.open) || { n: 0, s: 0 }; o.n++; o.s += g.res === 'w' ? 1 : g.res === 'd' ? 0.5 : 0; by.set(g.open, o); }
+  const top = [...by.entries()].sort((x, y) => y[1].n - x[1].n).slice(0, 5);
+  el.innerHTML = `<div class="cardhead"><h3>Deine Eröffnungen</h3><div class="seg"><button data-oc="w" class="${openColor === 'w' ? 'on' : ''}">Weiß</button><button data-oc="b" class="${openColor === 'b' ? 'on' : ''}">Schwarz</button></div></div>` +
+    (top.length ? top.map(([name, o]) => { const p = Math.round(o.s / o.n * 100); return `<div class="orow"><span class="on">${esc(name)}</span><span class="oc">${o.n}×</span><span class="obar"><i style="width:${p}%;background:${p >= 55 ? '#81b64c' : p >= 45 ? '#c9b458' : '#e06a5a'}"></i></span><span class="op">${p}%</span></div>`; }).join('') + `<div class="hint" style="margin:8px 0 0">Aus ${list.length} geladenen Partien · Prozent = erzielte Punkte</div>`
+      : `<div class="hint">Keine Partien mit ${openColor === 'w' ? 'Weiß' : 'Schwarz'} geladen.</div>`);
+}
+$('openCard').onclick = e => { const b = e.target.closest('[data-oc]'); if (b) { openColor = b.dataset.oc; renderOpenings(); } };
+
+// Accuracy trend over analysed games (own colour only)
+function gameTime(g) {
+  const h = g.h || {};
+  const d = (h.UTCDate || h.Date || '').replace(/\./g, '-'), tm = h.UTCTime || h.EndTime || '00:00:00';
+  const t = Date.parse(d + 'T' + tm + 'Z');
+  return isNaN(t) ? g.date || 0 : t;
+}
+function renderTrend() {
+  const el = $('trendCard');
+  const pts = storedGames().filter(g => g.st && g.st.me && (g.st.me === 'w' ? g.st.aw : g.st.ab) != null)
+    .map(g => ({ t: gameTime(g), a: g.st.me === 'w' ? g.st.aw : g.st.ab })).sort((x, y) => x.t - y.t).slice(-20);
+  if (pts.length < 2) { el.style.display = 'none'; return; }
+  el.style.display = '';
+  const W = 300, H = 70, n = pts.length;
+  const lo = Math.max(0, Math.min(...pts.map(p => p.a)) - 5), hi = Math.min(100, Math.max(...pts.map(p => p.a)) + 5);
+  const xy = pts.map((p, i) => [i / (n - 1) * (W - 8) + 4, H - 6 - (p.a - lo) / (hi - lo || 1) * (H - 12)]);
+  const avg = pts.reduce((s, p) => s + p.a, 0) / n;
+  const l5 = pts.slice(-5), p5 = pts.slice(-10, -5);
+  const m = l => l.reduce((s, p) => s + p.a, 0) / l.length;
+  const diff = p5.length ? m(l5) - m(p5) : null;
+  el.innerHTML = `<div class="cardhead"><h3>Deine Genauigkeit</h3><span class="tstat">Ø ${avg.toFixed(1)}${diff != null ? ` · <b style="color:${diff >= 0 ? '#81b64c' : '#e06a5a'}">${diff >= 0 ? '▲' : '▼'} ${Math.abs(diff).toFixed(1)}</b>` : ''}</span></div>
+    <svg viewBox="0 0 ${W} ${H}" class="spark" preserveAspectRatio="none"><polyline points="${xy.map(p => p.join(',')).join(' ')}" fill="none" stroke="#81b64c" stroke-width="2" vector-effect="non-scaling-stroke"/>${xy.map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="2.6" fill="#81b64c"/>`).join('')}</svg>
+    <div class="hint" style="margin:6px 0 0">Letzte ${n} analysierte Partien${diff != null ? ' · Pfeil: letzte 5 im Vergleich zu den 5 davor' : ''}</div>`;
+}
+// Fill in stats for analyses saved before stats existed (one game per tick, in the background).
+function enrichStored() {
+  const list = storedGames();
+  const g = list.find(x => x.ev && !x.st);
+  if (!g) return;
+  try {
+    const pg = C.parsePgn(g.pgn);
+    const pos = [pg.startFen, ...pg.moves.map(m => m.fenAfter)];
+    const ev = unslim(g.ev);
+    if (ev.length === pos.length) g.st = gameStats(pg, pos, ev, classifyGame(pg, pos, ev));
+    else g.st = { me: null, tr: [] };
+  } catch (e) { g.st = { me: null, tr: [] }; }
+  setGames(list);
+  renderHomeExtras();
+  setTimeout(enrichStored, 50);
+}
+
+// Ratings (current values) from the official APIs
+let ratings = LS.get('sa_ratings', null), lastRatings = 0;
+async function fetchRatings() {
+  if (!S.ccUser && !S.liUser) { ratings = null; renderTiles(); return; }
+  lastRatings = Date.now();
+  const list = [];
+  const jobs = [];
+  if (S.ccUser) jobs.push(getJson(`https://api.chess.com/pub/player/${encodeURIComponent(S.ccUser.toLowerCase())}/stats`).then(st => {
+    for (const [k, tc] of [['chess_bullet', 'bullet'], ['chess_blitz', 'blitz'], ['chess_rapid', 'rapid'], ['chess_daily', 'daily']]) {
+      const s = st[k];
+      if (s && s.last) list.push({ src: 'cc', tc, rating: s.last.rating, best: s.best ? s.best.rating : null, rec: s.record || null });
+    }
+  }));
+  if (S.liUser) jobs.push(getJson(`https://lichess.org/api/user/${encodeURIComponent(S.liUser)}`).then(u => {
+    for (const tc of ['bullet', 'blitz', 'rapid', 'classical', 'correspondence']) {
+      const p = u.perfs && u.perfs[tc];
+      if (p && p.games > 0) list.push({ src: 'li', tc, rating: p.rating, prog: p.prog || 0, prov: !!p.prov, games: p.games });
+    }
+  }));
+  await Promise.allSettled(jobs);
+  if (list.length) { ratings = { t: Date.now(), list }; LS.set('sa_ratings', ratings); }
+  renderTiles();
+}
+function tileChange(r) {
+  const gl = accGames.filter(g => srcKey(g) === r.src && g.tc === r.tc && g.myElo != null);
+  if (gl.length >= 2) { const k = Math.min(10, gl.length - 1); return gl[0].myElo - gl[k].myElo; }
+  return r.src === 'li' ? r.prog : null;
+}
+function renderTiles() {
+  const el = $('ratingTiles');
+  const names = { cc: S.ccUser, li: S.liUser };
+  const list = ratings && ratings.list ? ratings.list.filter(r => names[r.src]) : [];
+  if (!list.length) { el.innerHTML = ''; return; }
+  el.innerHTML = list.map(r => {
+    const ch = tileChange(r);
+    return `<button class="tile" data-rsrc="${r.src}" data-rtc="${r.tc}"><span class="srcchip ${r.src}">${r.src === 'li' ? 'Lichess' : 'chess.com'}</span><span class="tl">${TCL[r.tc] || r.tc}</span><span class="tr">${r.rating}${r.prov ? '?' : ''}</span>${ch ? `<span class="td ${ch > 0 ? 'up' : 'dn'}">${ch > 0 ? '▲' : '▼'} ${Math.abs(ch)}</span>` : '<span class="td">&nbsp;</span>'}</button>`;
+  }).join('');
+}
+$('ratingTiles').onclick = e => { const t = e.target.closest('.tile'); if (t) openRating(t.dataset.rsrc, t.dataset.rtc); };
+
+// Rating history (last 12 months), cached: finished chess.com months in localStorage, the rest in memory
+const histMem = {};
+const ym = d => `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+async function ccHistory(onP) {
+  const u = S.ccUser.toLowerCase();
+  if (histMem['cc:' + u]) return histMem['cc:' + u];
+  const arch = await getJson(`https://api.chess.com/pub/player/${encodeURIComponent(u)}/games/archives`);
+  const since = new Date(); since.setMonth(since.getMonth() - 12); since.setDate(1);
+  const cur = ym(new Date());
+  const months = (arch.archives || []).filter(url => url.slice(-7) >= ym(since));
+  const out = [];
+  let done = 0, i = 0;
+  const worker = async () => {
+    while (i < months.length) {
+      const url = months[i++], key = url.slice(-7), ck = `sa_cch_${u}_${key.replace('/', '-')}`;
+      let items = key !== cur ? LS.get(ck, null) : null;
+      if (!items) {
+        const d = await getJson(url);
+        items = (d.games || []).filter(g => !g.rules || g.rules === 'chess').map(g => {
+          const w = (g.white.username || '').toLowerCase() === u, me = w ? g.white : g.black, op = w ? g.black : g.white;
+          return [(g.end_time || 0) * 1000, g.time_class, me.rating, op.rating, me.result === 'win' ? 'w' : CC_DRAW.includes(me.result) ? 'd' : 'l', w ? 1 : 0];
+        });
+        if (key !== cur) LS.set(ck, items);
+      }
+      out.push(...items);
+      onP && onP(++done, months.length);
+    }
+  };
+  await Promise.all([worker(), worker(), worker()]);
+  const res = out.map(x => ({ t: x[0], tc: x[1], me: x[2], op: x[3], r: x[4], w: x[5] })).sort((x, y) => x.t - y.t);
+  histMem['cc:' + u] = res;
+  return res;
+}
+async function liHistory(tc) {
+  const key = 'li:' + S.liUser.toLowerCase() + ':' + tc;
+  if (histMem[key]) return histMem[key];
+  const since = Date.now() - 365 * 86400000;
+  const r = await fetch(`https://lichess.org/api/games/user/${encodeURIComponent(S.liUser)}?since=${since}&perfType=${tc}&moves=false&pgnInJson=false&max=3000`, { headers: { Accept: 'application/x-ndjson' } });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const u = S.liUser.toLowerCase();
+  const res = (await r.text()).split('\n').filter(Boolean).map(l => JSON.parse(l)).filter(g => g.rated !== false).map(g => {
+    const w = ((g.players.white.user && g.players.white.user.name) || '').toLowerCase() === u;
+    const me = w ? g.players.white : g.players.black, op = w ? g.players.black : g.players.white;
+    return { t: g.lastMoveAt || g.createdAt, tc, me: me.rating != null ? me.rating + (me.ratingDiff || 0) : null, op: op.rating, r: !g.winner ? 'd' : g.winner === (w ? 'white' : 'black') ? 'w' : 'l', w: w ? 1 : 0 };
+  }).filter(x => x.me != null).sort((x, y) => x.t - y.t);
+  histMem[key] = res;
+  return res;
+}
+let rState = null; // {src, tc, range, data}
+async function openRating(src, tc) {
+  rState = { src, tc, range: LS.get('sa_rrange', 90), data: null, err: '' };
+  renderRating(); openModal('mRating');
+  try {
+    rState.data = src === 'cc'
+      ? (await ccHistory((d, n) => { if (rState && !rState.data) { $('rLoad').textContent = `Lade Verlauf … ${d}/${n} Monate`; } })).filter(g => g.tc === tc)
+      : await liHistory(tc);
+  } catch (e) { rState.err = 'Verlauf konnte nicht geladen werden (' + (e.name === 'TypeError' ? 'keine Verbindung' : e.message) + ').'; }
+  renderRating();
+}
+function fmtD(t, y) { return new Date(t).toLocaleDateString('de-DE', y ? { day: '2-digit', month: '2-digit', year: '2-digit' } : { day: '2-digit', month: '2-digit' }); }
+function renderRating() {
+  if (!rState) return;
+  const r = (ratings && ratings.list || []).find(x => x.src === rState.src && x.tc === rState.tc) || {};
+  const el = $('ratingSheet');
+  const head = `<h2><span><span class="srcchip ${rState.src}">${rState.src === 'li' ? 'Lichess' : 'chess.com'}</span> ${TCL[rState.tc] || rState.tc}</span><button class="iconbtn" data-close>✕</button></h2>
+    <div class="rbig">${r.rating || '–'}</div>
+    <div class="seg rng">${[[30, '1 Monat'], [90, '3 Monate'], [365, '1 Jahr']].map(([d, l]) => `<button data-rg="${d}" class="${rState.range === d ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+  if (rState.err) { el.innerHTML = head + `<div class="err" style="display:block">${esc(rState.err)}</div>`; return; }
+  if (!rState.data) { el.innerHTML = head + `<div class="hint" id="rLoad">Lade Verlauf …</div>`; return; }
+  const from = Date.now() - rState.range * 86400000;
+  const all = rState.data;
+  const pts = all.filter(g => g.t >= from && g.me != null);
+  if (pts.length < 1) { el.innerHTML = head + '<div class="hint">In diesem Zeitraum keine Partien.</div>'; return; }
+  const before = all.filter(g => g.t < from && g.me != null).pop();
+  const startR = before ? before.me : pts[0].me;
+  const nowR = pts[pts.length - 1].me;
+  const W = 340, H = 150, padL = 34;
+  const lo = Math.min(...pts.map(p => p.me), startR), hi = Math.max(...pts.map(p => p.me), startR);
+  const span = Math.max(20, hi - lo), y0 = lo - span * 0.1, y1 = hi + span * 0.1;
+  const X = t => padL + (t - from) / (Date.now() - from) * (W - padL - 4);
+  const Y = v => H - 16 - (v - y0) / (y1 - y0) * (H - 24);
+  const line = [[from, startR], ...pts.map(p => [p.t, p.me])];
+  const path = line.map(([t, v], i) => (i ? 'L' : 'M') + X(t).toFixed(1) + ',' + Y(v).toFixed(1)).join(' ');
+  const ticks = [lo, Math.round((lo + hi) / 2), hi];
+  const svg = `<svg viewBox="0 0 ${W} ${H}" class="rchart" id="rChart">
+    ${ticks.map(v => `<line x1="${padL}" x2="${W}" y1="${Y(v)}" y2="${Y(v)}" stroke="#3a3733"/><text x="${padL - 4}" y="${Y(v) + 3}" text-anchor="end" fill="#999" font-size="10">${v}</text>`).join('')}
+    <path d="${path} L${X(Date.now())},${Y(nowR)} L${X(Date.now())},${H - 16} L${padL},${H - 16} Z" fill="rgba(129,182,76,.15)"/>
+    <path d="${path} L${X(Date.now())},${Y(nowR)}" fill="none" stroke="#81b64c" stroke-width="2"/>
+    <text x="${padL}" y="${H - 3}" fill="#999" font-size="10">${fmtD(from, rState.range > 90)}</text><text x="${W}" y="${H - 3}" fill="#999" font-size="10" text-anchor="end">heute</text>
+    <line id="rCur" x1="0" x2="0" y1="0" y2="${H - 16}" stroke="#fff" stroke-width="1" opacity="0"/></svg><div class="rtip" id="rTip">&nbsp;</div>`;
+  // insights
+  const w = pts.filter(g => g.r === 'w').length, d = pts.filter(g => g.r === 'd').length, l = pts.length - w - d;
+  const ch = nowR - startR;
+  const hiP = pts.reduce((m, p) => (p.me > m.me ? p : m)), loP = pts.reduce((m, p) => (p.me < m.me ? p : m));
+  const wins = pts.filter(g => g.r === 'w' && g.op);
+  const bestWin = wins.length ? wins.reduce((m, p) => (p.op > m.op ? p : m)) : null;
+  let streak = 0, cur = 0; for (const p of pts) { cur = p.r === 'w' ? cur + 1 : 0; streak = Math.max(streak, cur); }
+  const avgOp = Math.round(pts.filter(p => p.op).reduce((s, p) => s + p.op, 0) / (pts.filter(p => p.op).length || 1));
+  const rate = (arr) => arr.length ? Math.round(arr.reduce((s, p) => s + (p.r === 'w' ? 1 : p.r === 'd' ? 0.5 : 0), 0) / arr.length * 100) + '%' : '–';
+  const wW = pts.filter(p => p.w), wB = pts.filter(p => !p.w);
+  const ins = [
+    ['Veränderung', `<b style="color:${ch >= 0 ? '#81b64c' : '#e06a5a'}">${ch >= 0 ? '+' : ''}${ch}</b>`],
+    ['Partien', pts.length],
+    ['Bilanz', `<span class="cw">${w}</span> / <span class="cd">${d}</span> / <span class="cl">${l}</span>`],
+    ['Punkte-Quote', rate(pts)],
+    ['Höchstwert', `${hiP.me} <small>${fmtD(hiP.t)}</small>`],
+    ['Tiefstwert', `${loP.me} <small>${fmtD(loP.t)}</small>`],
+    ['Bester Sieg', bestWin ? `${bestWin.op} <small>${fmtD(bestWin.t)}</small>` : '–'],
+    ['Längste Siegesserie', streak],
+    ['Ø Gegner', avgOp || '–'],
+    ['Quote Weiß / Schwarz', `${rate(wW)} / ${rate(wB)}`],
+  ];
+  if (r.best) ins.push(['Bestwert (insgesamt)', r.best]);
+  el.innerHTML = head + svg + `<div class="ins">${ins.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('')}</div>`;
+  const chart = $('rChart');
+  const show = ev => {
+    const b = chart.getBoundingClientRect();
+    const x = (ev.clientX - b.left) / b.width * W;
+    let best = pts[0]; for (const p of pts) if (Math.abs(X(p.t) - x) < Math.abs(X(best.t) - x)) best = p;
+    const c = $('rCur'); c.setAttribute('x1', X(best.t)); c.setAttribute('x2', X(best.t)); c.setAttribute('opacity', '.5');
+    $('rTip').innerHTML = `<b>${best.me}</b> · ${fmtD(best.t, true)} · ${best.r === 'w' ? 'Sieg' : best.r === 'd' ? 'Remis' : 'Niederlage'}${best.op ? ` gegen ${best.op}` : ''}`;
+  };
+  chart.addEventListener('pointerdown', show); chart.addEventListener('pointermove', e => { if (e.buttons || e.pointerType === 'touch') show(e); });
+}
+$('ratingSheet').addEventListener('click', e => { const b = e.target.closest('[data-rg]'); if (b && rState) { rState.range = +b.dataset.rg; LS.set('sa_rrange', rState.range); renderRating(); } });
+
+// ---------- training: learn from own mistakes ----------
+let trainTasks = [], trainIdx = 0, trainArrow = null, trainSt = null;
+const trainProg = () => LS.get('sa_train', {});
+function buildTasks() {
+  const prog = trainProg();
+  const all = [];
+  for (const g of storedGames()) {
+    if (!g.st || !g.st.tr || !g.st.me) continue;
+    const h = g.h || {};
+    for (const t of g.st.tr) all.push(Object.assign({ id: g.id + ':' + t.ply, color: g.st.me, h, gt: gameTime(g) }, t));
+  }
+  const solved = t => prog[t.id] && prog[t.id].ok;
+  return all.filter(t => !solved(t)).concat(all.filter(solved));
+}
+function renderTrainHome() {
+  const el = $('trainHome');
+  const tasks = buildTasks();
+  const analysed = storedGames().filter(g => g.st && g.st.me).length;
+  if (!analysed) { el.style.display = 'none'; return; }
+  el.style.display = '';
+  const prog = trainProg();
+  const solved = tasks.filter(t => prog[t.id] && prog[t.id].ok).length;
+  el.innerHTML = `<div class="cardhead"><h3>Aus Fehlern lernen</h3></div>` + (tasks.length
+    ? `<div class="trrow"><div><b>${tasks.length} ${tasks.length === 1 ? 'Aufgabe' : 'Aufgaben'}</b> aus deinen Fehlern<div class="sub">${solved} gelöst · aus ${analysed} analysierten Partien</div></div><button class="primary" id="bTrain">${solved && solved < tasks.length ? 'Weiter' : 'Starten'}</button></div>`
+    : `<div class="hint" style="margin:0">Keine Fehler in deinen analysierten Partien gefunden – stark!</div>`);
+}
+$('trainHome').onclick = e => { if (e.target.closest('#bTrain')) startTraining(); };
+function startTraining() {
+  trainTasks = buildTasks();
+  if (!trainTasks.length) return;
+  openTask(0);
+}
+function openTask(i) {
+  trainIdx = i;
+  const t = trainTasks[i];
+  Engine.cancel('live');
+  game = { headers: { White: t.h.White, Black: t.h.Black, WhiteElo: t.h.WhiteElo, BlackElo: t.h.BlackElo }, startFen: t.fen, moves: [], free: true, trainer: true };
+  positions = [t.fen]; evals = []; cls = []; variation = null; selected = null; ply = 0;
+  liveLines = null;
+  flipped = t.color === 'b';
+  trainArrow = null;
+  trainSt = { tries: 0, done: false, shown: false, msg: '' };
+  closeModals();
+  showView('board');
+  document.body.classList.add('training');
+  renderBoardAndInfo();
+  renderTrainCard();
+}
+function renderTrainCard() {
+  const t = trainTasks[trainIdx], el = $('trainCard');
+  if (!t) return;
+  const info = A.CLASSES[t.type];
+  const opp = t.color === 'w' ? t.h.Black : t.h.White;
+  const side = t.color === 'w' ? 'Weiß' : 'Schwarz';
+  let status = '';
+  if (trainSt.done) status = `<div class="tstat ok">✓ ${esc(trainSt.msg)}</div>`;
+  else if (trainSt.msg) status = `<div class="tstat no">${esc(trainSt.msg)}</div>`;
+  el.innerHTML = `<div class="meta"><span>Aufgabe ${trainIdx + 1} von ${trainTasks.length}</span><span>${t.gt ? timeAgo(t.gt) : ''}</span></div>
+    <div class="fb">${badge(t.type)}<div><div class="t">Finde den besten Zug für ${side}</div><div class="s">Gegen ${esc(opp || '?')} hast du hier <b style="color:#fff">${esc(t.played)}</b> gespielt – ${info.label.toLowerCase() === 'verpasst' ? 'eine verpasste Chance' : info.label === 'Patzer' ? 'ein Patzer' : 'ein Fehler'}.</div></div></div>
+    ${status}
+    <div class="row">${trainSt.done ? '' : '<button class="iconbtn" id="bTrHint">Lösung zeigen</button>'}<button class="${trainSt.done ? 'primary' : 'iconbtn'}" id="bTrNext">${trainIdx + 1 < trainTasks.length ? 'Nächste Aufgabe ›' : 'Fertig'}</button></div>`;
+}
+$('trainCard').onclick = e => {
+  if (e.target.closest('#bTrNext')) {
+    if (trainIdx + 1 < trainTasks.length) openTask(trainIdx + 1); else showView('home');
+    return;
+  }
+  if (e.target.closest('#bTrHint')) {
+    const t = trainTasks[trainIdx];
+    trainSt.shown = true; trainArrow = t.best;
+    trainSt.msg = 'Der blaue Pfeil zeigt den besten Zug – spiel ihn nach.';
+    renderArrows(); renderTrainCard();
+  }
+};
+function trainerApply(u) {
+  const fen = curFen(), p = C.parseFen(fen), m = C.findMove(p, u);
+  if (!m) return;
+  const s = C.san(p, m);
+  animMove({ from: m.from, to: m.to, san: s });
+  const np = C.make(p, m);
+  Sound.forMove({ san: s }, C.toFen(np));
+  game.moves.push({ san: s, uci: u, from: m.from, to: m.to, piece: m.piece, captured: m.captured, promo: m.promo || null, fenBefore: fen, fenAfter: C.toFen(np) });
+  positions.push(C.toFen(np)); ply++;
+}
+function trainerMove(m) {
+  const t = trainTasks[trainIdx];
+  if (!t || trainSt.done) return;
+  const u = C.uci(m);
+  if (u === t.best || (t.alt && u === t.alt)) {
+    trainSt.done = true; trainArrow = null;
+    const p = C.parseFen(curFen());
+    trainSt.msg = `Richtig! ${C.san(p, m)} ${u === t.best ? 'ist der beste Zug' : 'ist genauso gut'}.`;
+    if (!trainSt.shown) { const pr = trainProg(); pr[t.id] = { ok: true, tries: trainSt.tries + 1 }; LS.set('sa_train', pr); }
+    trainerApply(u);
+    renderBoardAndInfo(); renderTrainCard();
+    const reply = u === t.best && t.pv[1];
+    if (reply) setTimeout(() => { if (game && game.trainer && trainTasks[trainIdx] === t) { trainerApply(reply); renderBoardAndInfo(); } }, 700);
+  } else {
+    trainSt.tries++;
+    const p = C.parseFen(curFen());
+    trainSt.msg = `${C.san(p, m)} ist nicht der beste Zug – versuch es nochmal.`;
+    renderBoard(); renderTrainCard();
+  }
+}
+
+function renderHomeExtras() { renderTiles(); renderTrend(); renderTrainHome(); renderOpenings(); }
+
 // ---------- views: start screen <-> board ----------
 let view = 'home';
 function showView(v) {
@@ -1290,16 +1723,20 @@ function showView(v) {
   $('viewReview').style.display = v === 'review' ? '' : 'none';
   $('btnHome').style.display = v !== 'home' ? '' : 'none';
   $('btnReview').style.display = v === 'board' && game && !game.free && cls.some(Boolean) && !analyzing ? '' : 'none';
+  if (v !== 'board' || !(game && game.trainer)) { document.body.classList.remove('training'); trainArrow = null; }
   if (v === 'review') renderReview();
   if (v === 'home') {
     Engine.cancel('live');
+    renderHomeExtras();
     renderAccList();
+    if (Date.now() - lastRatings > 10 * 60000) fetchRatings();
+    setTimeout(enrichStored, 400);
     if (Date.now() - lastFetch > 60000) loadAccountGames(false);
   }
   window.scrollTo(0, 0);
 }
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && view === 'home') { renderAccList(); if (Date.now() - lastFetch > 60000) loadAccountGames(false); }
+  if (document.visibilityState === 'visible' && view === 'home') { renderAccList(); if (Date.now() - lastFetch > 60000) loadAccountGames(false); if (Date.now() - lastRatings > 10 * 60000) fetchRatings(); }
 });
 
 // ---------- boot ----------
