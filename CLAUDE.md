@@ -62,6 +62,15 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
 - Gespeicherte Analysen enthalten `st` (Genauigkeit, eigene Farbe, Trainingsaufgaben = eigene Fehler/Patzer/Verpasst mit bestem Zug);
   ältere Einträge werden im Hintergrund nachberechnet (`enrichStored`). Trainer: Brett im Modus `game.trainer` (`body.training`),
   Fortschritt in `sa_train`.
+- **Bewertungsmodell an chess.com kalibriert** (`analysis.js`, Objekt `EP`): Erwartete Punkte = Logistik in Centipawns mit
+  wertungsabhängiger Steilheit k(R) = 0.003·(R+1300)/2000 (R aus WhiteElo/BlackElo, sonst 1000); Grenzen Exzellent/Gut/
+  Ungenauigkeit/Fehler = 0.02/0.05/0.08/0.30 verlorene erwartete Punkte; Bester Zug = Top-Zug der Engine mit Verlust ≤ 0.02;
+  Verpasst = Gegner verlor zuvor ≥ 0.10 und dieser Zug gibt ≥ 0.05 zurück; Theorie läuft bis Halbzug 10 weiter, solange
+  Verlust ≤ 0.03; Zug-Genauigkeit 100 − 16·(100·Verlust)^0.7, Partie-Genauigkeit = Mittelwert; Spielstärke
+  = −364 + 0.2·Genauigkeit² (gerundet auf 50). Gefittet am 14.11.2026 auf 10 Partien des Nutzers (~700 Elo) gegen
+  chess.com-Screenshots: Genauigkeit RMSE 14,6 → 5,6; Zugbewertungen ca. 25 % weniger Abweichung (Kreuzvalidierung bestätigt).
+  Kalibrierdaten (PGNs, Screenshots) liegen bewusst **nicht** im Repo (fremde Spielernamen). Für eine Nachkalibrierung:
+  Export + neue Screenshots vom Nutzer anfordern. Gespeicherte Statistiken tragen `st.v = 2`.
 - Kalibrierung an chess.com: „Gespeicherte Analysen“ → „Kalibrierungsdaten exportieren“ (JSON mit analysierten Partien inkl.
   Engine-Daten und den PGNs der zuletzt gespielten Partien); Vergleich mit chess.com-Review-Screenshots des Nutzers.
 - Übersicht (`#viewReview`) nach jeder Analyse bzw. beim Öffnen einer analysierten Partie: Spieler, Genauigkeit,

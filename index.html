@@ -306,7 +306,7 @@ header .iconbtn{white-space:nowrap}
   </details>
 </div></div>
 
-<script>window.SA_VERSION="b3c5df23";window.SA_BUILT="14.11.2026 22:32";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
+<script>window.SA_VERSION="19715437";window.SA_BUILT="14.11.2026 23:01";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
 <script>// Minimal chess core: board, legal moves, SAN, FEN, PGN. Square 0 = a8, 63 = h1.
 const Chess = (() => {
   const FILES = 'abcdefgh';
@@ -623,7 +623,7 @@ const Analysis = (() => {
     miss:       { label: 'Verpasst',       sym: '✕',  color: '#ff7769', phrase: 'verpasst eine Chance' },
     blunder:    { label: 'Patzer',         sym: '??', color: '#fa412d', phrase: 'ist ein Patzer' },
   };
-  const ORDER = ['book', 'brilliant', 'great', 'best', 'excellent', 'good', 'forced', 'inaccuracy', 'mistake', 'miss', 'blunder'];
+  const ORDER = ['book', 'brilliant', 'great', 'best', 'excellent', 'good', 'inaccuracy', 'mistake', 'miss', 'blunder'];
 
   // Did the move leave a piece en prise for a net material loss of >= 2?
   function isSacrifice(move, fenAfter) {
@@ -643,47 +643,69 @@ const Analysis = (() => {
   }
 
   // evals[i] = { lines:[{cpw, pv:[uci...]}], terminal } (white POV). Returns classification for move i.
+  // ---- chess.com-calibrated review model (fitted on the user's games vs. chess.com Game Review, see CLAUDE.md) ----
+  // Expected points: logistic in centipawns, steepness grows with the mover's rating (weaker players convert less reliably).
+  const EP = {
+    k: 0.003, r0: 1300, base: 700,          // k(R) = k * (R + r0) / (base + r0)
+    tE: 0.02, tG: 0.05, tI: 0.08, tM: 0.30,  // expected-points loss limits: excellent/good/inaccuracy/mistake (else blunder)
+    bestRaw: 0.02,                           // engine's top move only counts as "best" if it really keeps the evaluation
+    brilTol: 0.05, brilMaxWin: 0.95, brilMinWin: 0.45,
+    greatGap: 0.08, greatMinWin: 0.30,
+    missOpp: 0.10, missMin: 0.05,            // opponent just lost >= 0.10 and this move gives >= 0.05 back
+    accA: 16, accP: 0.7,                     // move accuracy = 100 - accA * (100*loss)^accP, game accuracy = mean (clamped)
+    bookExt: 10, bookLoss: 0.03,             // theory continues up to ply 10 while moves stay near-perfect
+    defaultElo: 1000,
+  };
+  const ratingOf = (game, color) => {
+    const h = game.headers || {};
+    const v = parseInt(color === 'w' ? h.WhiteElo : h.BlackElo, 10);
+    return v > 0 ? v : EP.defaultElo;
+  };
+  const expPts = (cp, rating) => {
+    const k = EP.k * (rating + EP.r0) / (EP.base + EP.r0);
+    const x = Math.max(-2000, Math.min(2000, cp));
+    return 1 / (1 + Math.exp(-k * x));
+  };
+  const moveAcc = loss => 100 - EP.accA * Math.pow(loss * 100, EP.accP);
+
+  // evals[i] = { lines:[{cpw, pv:[uci...]}], terminal } (white POV). Returns classification for move i.
   function classify(game, positions, evals, i, prevCls) {
     const m = game.moves[i];
     const e0 = evals[i], e1 = evals[i + 1];
     if (!e0 || !e1 || !e0.lines.length || !e1.lines.length) return null;
     const p0 = C.parseFen(positions[i]);
     const sgn = p0.turn === 'w' ? 1 : -1;
+    const R = ratingOf(game, p0.turn);
     const l0 = e0.lines[0], l1 = e0.lines[1];
-    const wb = winPct(sgn * l0.cpw), wa = winPct(sgn * e1.lines[0].cpw);
-    const loss = Math.max(0, wb - wa);
-    const nLegal = C.legal(p0).length;
+    const eb = expPts(sgn * l0.cpw, R), ea = expPts(sgn * e1.lines[0].cpw, R);
+    const rawLoss = Math.max(0, eb - ea);
     const deliversMate = e1.terminal === 'mate';
-    const isBest = deliversMate || (l0.pv && l0.pv[0] === m.uci);
-    const res = { loss, wb, wa, acc: moveAccuracy(loss), bestUci: l0.pv && l0.pv[0], isBest };
-    if (nLegal === 1) { res.type = 'forced'; return res; }
-    const nearBest = isBest || loss <= 2;
-    if (nearBest && wb <= 95 && wa >= 45 && isSacrifice(m, positions[i + 1])) { res.type = 'brilliant'; return res; }
+    let isBest = deliversMate || (l0.pv && l0.pv[0] === m.uci);
+    if (isBest && rawLoss > EP.bestRaw) isBest = false;
+    const loss = isBest ? 0 : rawLoss;
+    const res = { loss, eb, ea, acc: moveAcc(loss), bestUci: l0.pv && l0.pv[0], isBest };
+    if (C.legal(p0).length === 1) { res.type = 'best'; res.isBest = true; return res; }
+    if ((isBest || loss <= EP.brilTol) && eb <= EP.brilMaxWin && ea >= EP.brilMinWin && isSacrifice(m, positions[i + 1])) { res.type = 'brilliant'; return res; }
     const prevM = i > 0 ? game.moves[i - 1] : null;
     const isRecapture = prevM && prevM.captured && prevM.to === m.to;
-    if (isBest && l1 && !isRecapture && !deliversMate) {
-      const gap = winPct(sgn * l0.cpw) - winPct(sgn * l1.cpw);
-      if (gap >= 20 && wa >= 30) { res.type = 'great'; return res; }
-    }
+    if (isBest && l1 && !isRecapture && !deliversMate && ea >= EP.greatMinWin && eb - expPts(sgn * l1.cpw, R) >= EP.greatGap) { res.type = 'great'; return res; }
     if (isBest) res.type = 'best';
-    else if (loss < 2) res.type = 'excellent';
-    else if (loss < 5) res.type = 'good';
-    else if (loss < 10) res.type = 'inaccuracy';
-    else if (loss < 20) res.type = 'mistake';
+    else if (loss < EP.tE) res.type = 'excellent';
+    else if (loss < EP.tG) res.type = 'good';
+    else if (loss < EP.tI) res.type = 'inaccuracy';
+    else if (loss < EP.tM) res.type = 'mistake';
     else res.type = 'blunder';
-    if (prevCls && ['mistake', 'blunder', 'miss'].includes(prevCls.type) && ['inaccuracy', 'mistake'].includes(res.type)) res.type = 'miss';
+    if (prevCls && prevCls.loss >= EP.missOpp && loss >= EP.missMin && ['inaccuracy', 'mistake', 'blunder'].includes(res.type)) res.type = 'miss';
     return res;
   }
 
   function accuracy(list) {
     const a = list.filter(x => x).map(x => x.acc);
     if (!a.length) return null;
-    const mean = a.reduce((s, x) => s + x, 0) / a.length;
-    const harm = a.length / a.reduce((s, x) => s + 1 / Math.max(x, 1), 0);
-    return (mean + harm) / 2;
+    return Math.max(0, Math.min(100, a.reduce((s, x) => s + x, 0) / a.length));
   }
 
-  return { winPct, moveAccuracy, CLASSES, ORDER, classify, accuracy, isSacrifice };
+  return { winPct, moveAccuracy, CLASSES, ORDER, classify, accuracy, isSacrifice, EP, expPts };
 })();
 if (typeof module !== 'undefined') module.exports = Analysis;
 </script>
@@ -934,6 +956,8 @@ function applyBookTo(g, pos, ev, cl) {
   }
   // a theory move is no mistake to punish: re-rate the first move after the book without "Verpasst"
   if (i > 0 && cl[i] && cl[i].type === 'miss') cl[i] = A.classify(g, pos, ev, i, cl[i - 1]);
+  // like chess.com: theory continues a few more plies while the moves stay near-perfect
+  while (i < A.EP.bookExt && i < g.moves.length && cl[i] && cl[i].loss <= A.EP.bookLoss && (i === 0 || (cl[i - 1] && cl[i - 1].type === 'book'))) { cl[i] = Object.assign({}, cl[i], { type: 'book' }); i++; }
 }
 function classifyGame(g, pos, ev) {
   const cl = [];
@@ -962,7 +986,7 @@ function gameStats(g, pos, ev, cl) {
     const alt = ls[1] && ls[1].pv && ls[1].pv[0] && A.winPct(sg * ls[0].cpw) - A.winPct(sg * ls[1].cpw) < 4 ? ls[1].pv[0] : null;
     tr.push({ ply: i, fen: pos[i], best: c.bestUci, alt, played: g.moves[i].san, type: c.type, pv: (ls[0] && ls[0].pv || []).slice(0, 3) });
   });
-  return { aw: A.accuracy(wl), ab: A.accuracy(bl), me, tr };
+  return { v: 2, aw: A.accuracy(wl), ab: A.accuracy(bl), me, tr };
 }
 // Name of the deepest named opening position reached up to ply p.
 function openingName(p = positions.length - 1) {
@@ -1974,19 +1998,13 @@ $('bReanalyze').onclick = () => {
 
 // ---------- review overview (shown after the analysis) ----------
 // Rough playing-strength estimate from one game's accuracy (own heuristic, not chess.com's formula).
+// Playing-strength estimate from one game's accuracy, fitted to chess.com's "Game Rating" on the user's games (~700 Elo).
 function estRating(acc, nMoves) {
   if (acc == null || nMoves < 8) return null;
-  const pts = [[0, 100], [40, 400], [50, 600], [60, 900], [70, 1250], [75, 1450], [80, 1700], [85, 1950], [90, 2250], [95, 2600], [100, 3000]];
-  for (let i = 1; i < pts.length; i++) {
-    if (acc <= pts[i][0]) {
-      const [x0, y0] = pts[i - 1], [x1, y1] = pts[i];
-      return Math.round((y0 + (acc - x0) / (x1 - x0) * (y1 - y0)) / 50) * 50;
-    }
-  }
-  return 3000;
+  return Math.max(100, Math.min(3000, Math.round((-364 + 0.2 * acc * acc) / 50) * 50));
 }
 const REVIEW_MAIN = ['brilliant', 'great', 'best', 'mistake', 'miss', 'blunder'];
-const REVIEW_MORE = ['book', 'excellent', 'good', 'forced', 'inaccuracy'];
+const REVIEW_MORE = ['book', 'excellent', 'good', 'inaccuracy'];
 let reviewMore = false;
 function renderReview() {
   const el = $('viewReview');
@@ -2131,15 +2149,15 @@ function renderTrend() {
 // Fill in stats for analyses saved before stats existed (one game per tick, in the background).
 function enrichStored() {
   const list = storedGames();
-  const g = list.find(x => x.ev && !x.st);
+  const g = list.find(x => x.ev && (!x.st || x.st.v !== 2)); // v2 = chess.com-calibrated model
   if (!g) return;
   try {
     const pg = C.parsePgn(g.pgn);
     const pos = [pg.startFen, ...pg.moves.map(m => m.fenAfter)];
     const ev = unslim(g.ev);
     if (ev.length === pos.length) g.st = gameStats(pg, pos, ev, classifyGame(pg, pos, ev));
-    else g.st = { me: null, tr: [] };
-  } catch (e) { g.st = { me: null, tr: [] }; }
+    else g.st = { v: 2, me: null, tr: [] };
+  } catch (e) { g.st = { v: 2, me: null, tr: [] }; }
   setGames(list);
   renderHomeExtras();
   setTimeout(enrichStored, 50);

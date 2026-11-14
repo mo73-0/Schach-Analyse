@@ -242,6 +242,8 @@ function applyBookTo(g, pos, ev, cl) {
   }
   // a theory move is no mistake to punish: re-rate the first move after the book without "Verpasst"
   if (i > 0 && cl[i] && cl[i].type === 'miss') cl[i] = A.classify(g, pos, ev, i, cl[i - 1]);
+  // like chess.com: theory continues a few more plies while the moves stay near-perfect
+  while (i < A.EP.bookExt && i < g.moves.length && cl[i] && cl[i].loss <= A.EP.bookLoss && (i === 0 || (cl[i - 1] && cl[i - 1].type === 'book'))) { cl[i] = Object.assign({}, cl[i], { type: 'book' }); i++; }
 }
 function classifyGame(g, pos, ev) {
   const cl = [];
@@ -270,7 +272,7 @@ function gameStats(g, pos, ev, cl) {
     const alt = ls[1] && ls[1].pv && ls[1].pv[0] && A.winPct(sg * ls[0].cpw) - A.winPct(sg * ls[1].cpw) < 4 ? ls[1].pv[0] : null;
     tr.push({ ply: i, fen: pos[i], best: c.bestUci, alt, played: g.moves[i].san, type: c.type, pv: (ls[0] && ls[0].pv || []).slice(0, 3) });
   });
-  return { aw: A.accuracy(wl), ab: A.accuracy(bl), me, tr };
+  return { v: 2, aw: A.accuracy(wl), ab: A.accuracy(bl), me, tr };
 }
 // Name of the deepest named opening position reached up to ply p.
 function openingName(p = positions.length - 1) {
@@ -1282,19 +1284,13 @@ $('bReanalyze').onclick = () => {
 
 // ---------- review overview (shown after the analysis) ----------
 // Rough playing-strength estimate from one game's accuracy (own heuristic, not chess.com's formula).
+// Playing-strength estimate from one game's accuracy, fitted to chess.com's "Game Rating" on the user's games (~700 Elo).
 function estRating(acc, nMoves) {
   if (acc == null || nMoves < 8) return null;
-  const pts = [[0, 100], [40, 400], [50, 600], [60, 900], [70, 1250], [75, 1450], [80, 1700], [85, 1950], [90, 2250], [95, 2600], [100, 3000]];
-  for (let i = 1; i < pts.length; i++) {
-    if (acc <= pts[i][0]) {
-      const [x0, y0] = pts[i - 1], [x1, y1] = pts[i];
-      return Math.round((y0 + (acc - x0) / (x1 - x0) * (y1 - y0)) / 50) * 50;
-    }
-  }
-  return 3000;
+  return Math.max(100, Math.min(3000, Math.round((-364 + 0.2 * acc * acc) / 50) * 50));
 }
 const REVIEW_MAIN = ['brilliant', 'great', 'best', 'mistake', 'miss', 'blunder'];
-const REVIEW_MORE = ['book', 'excellent', 'good', 'forced', 'inaccuracy'];
+const REVIEW_MORE = ['book', 'excellent', 'good', 'inaccuracy'];
 let reviewMore = false;
 function renderReview() {
   const el = $('viewReview');
@@ -1439,15 +1435,15 @@ function renderTrend() {
 // Fill in stats for analyses saved before stats existed (one game per tick, in the background).
 function enrichStored() {
   const list = storedGames();
-  const g = list.find(x => x.ev && !x.st);
+  const g = list.find(x => x.ev && (!x.st || x.st.v !== 2)); // v2 = chess.com-calibrated model
   if (!g) return;
   try {
     const pg = C.parsePgn(g.pgn);
     const pos = [pg.startFen, ...pg.moves.map(m => m.fenAfter)];
     const ev = unslim(g.ev);
     if (ev.length === pos.length) g.st = gameStats(pg, pos, ev, classifyGame(pg, pos, ev));
-    else g.st = { me: null, tr: [] };
-  } catch (e) { g.st = { me: null, tr: [] }; }
+    else g.st = { v: 2, me: null, tr: [] };
+  } catch (e) { g.st = { v: 2, me: null, tr: [] }; }
   setGames(list);
   renderHomeExtras();
   setTimeout(enrichStored, 50);
