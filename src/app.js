@@ -305,6 +305,7 @@ function loadGame(parsed, pgnText, cached) {
     ply = 0;
   }
   closeModals();
+  showView('board');
   renderAll();
   if (!game.free) { saveGame(); if (!(cached && cached.ev)) startAnalysis(); }
   else requestLive();
@@ -730,7 +731,7 @@ function renderProgress() {
 }
 function renderEmpty() {
   if (game) return;
-  $('lines').innerHTML = `<div class="empty">Füge eine Partie von chess.com oder Lichess ein, um sie analysieren zu lassen.<br><button class="primary" onclick="document.getElementById('btnImport').click()">Partie importieren</button></div>`;
+  $('lines').innerHTML = '';
 }
 function renderBoardAndInfo() {
   renderBoard(); renderEvalBar(); renderPlayers(); renderFeedback(); renderVarbar();
@@ -890,12 +891,7 @@ document.addEventListener('keydown', e => {
 function openModal(id) { $(id).classList.add('open'); }
 function closeModals() { document.querySelectorAll('.modal').forEach(m => m.classList.remove('open')); }
 document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if (e.target === m || e.target.closest('[data-close]')) closeModals(); }));
-$('btnImport').onclick = () => { $('impErr').style.display = 'none'; $('multiPick').innerHTML = ''; renderGameList(); openModal('mImport'); onImportOpen(); };
-function onImportOpen() {
-  $('ccUser').value = S.ccUser || ''; $('liUser').value = S.liUser || '';
-  renderAccList();
-  if (S.ccUser || S.liUser) loadAccountGames();
-}
+function openPgnModal() { $('impErr').style.display = 'none'; $('multiPick').innerHTML = ''; openModal('mImport'); }
 $('btnSettings').onclick = () => { renderSettings(); openModal('mSettings'); };
 
 function showErr(msg) { const e = $('impErr'); e.textContent = msg; e.style.display = 'block'; }
@@ -999,23 +995,52 @@ async function fetchAccountGames(more) {
   if (!more) LS.set('sa_accgames', accGames.slice(0, 40));
   return res.filter(r => r.status === 'rejected').map(r => r.reason.message).join(' · ');
 }
-async function loadAccountGames(more = false) {
-  if (!more) { S.ccUser = $('ccUser').value.trim(); S.liUser = $('liUser').value.trim(); saveSettings(); updateLatestBtn(); }
+let lastFetch = 0, fetching = false;
+async function loadAccountGames(more = false, fromInputs = false) {
+  if (fromInputs) {
+    S.ccUser = $('ccUser').value.trim(); S.liUser = $('liUser').value.trim(); saveSettings();
+    if (S.ccUser || S.liUser) $('accCard').style.display = 'none';
+    renderAccInfo();
+  }
   const err = $('accErr'); err.style.display = 'none';
-  if (!S.ccUser && !S.liUser) { err.textContent = 'Gib mindestens einen Benutzernamen ein.'; err.style.display = 'block'; return; }
-  if (!more) $('accList').innerHTML = '<div class="hint">Lade Partien …</div>';
+  if (!S.ccUser && !S.liUser) { if (fromInputs) { err.textContent = 'Gib mindestens einen Benutzernamen ein.'; err.style.display = 'block'; } return; }
+  if (fetching) return;
+  fetching = true; lastFetch = Date.now();
+  $('bRefresh').classList.add('spinning');
+  if (!more && !accGames.length) $('accList').innerHTML = '<div class="hint">Lade Partien …</div>';
   else { const b = $('bMoreGames'); if (b) { b.disabled = true; b.textContent = 'Lade …'; } }
   const msg = await fetchAccountGames(more);
+  fetching = false;
+  $('bRefresh').classList.remove('spinning');
   if (msg) { err.textContent = msg; err.style.display = 'block'; }
   renderAccList();
 }
+function timeAgo(t) {
+  const s = (Date.now() - t) / 1000;
+  if (s < 60) return 'gerade eben';
+  const m = Math.floor(s / 60); if (m < 60) return `vor ${m} Min.`;
+  const h = Math.floor(m / 60); if (h < 24) return `vor ${h} Std.`;
+  const d = Math.floor(h / 24); if (d === 1) return 'gestern'; if (d < 7) return `vor ${d} Tagen`;
+  const w = Math.floor(d / 7); if (d < 30) return w === 1 ? 'vor 1 Woche' : `vor ${w} Wochen`;
+  const mo = Math.floor(d / 30); if (d < 365) return mo === 1 ? 'vor 1 Monat' : `vor ${mo} Monaten`;
+  const y = Math.floor(d / 365); return y === 1 ? 'vor 1 Jahr' : `vor ${y} Jahren`;
+}
+function renderAccInfo() {
+  const parts = [];
+  if (S.ccUser) parts.push('chess.com: <b>' + esc(S.ccUser) + '</b>');
+  if (S.liUser) parts.push('Lichess: <b>' + esc(S.liUser) + '</b>');
+  $('accInfo').innerHTML = parts.length ? parts.join(' · ') + ' · <button id="bEditAcc">ändern</button>' : '';
+  if (!parts.length) { $('accCard').style.display = ''; }
+}
 function renderAccList() {
   const el = $('accList');
-  if (!accGames.length) { el.innerHTML = ''; return; }
+  if (!accGames.length) {
+    el.innerHTML = (S.ccUser || S.liUser) && !fetching ? '<div class="hint">Keine Partien gefunden.</div>' : '';
+    return;
+  }
   const done = analysedKeys();
-  const fmt = t => { const d = new Date(t); return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' }) + ' ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }); };
   const canMore = accState && ((accState.cc && !accState.cc.done) || (accState.li && !accState.li.done));
-  el.innerHTML = accGames.map((g, k) => `<div class="g" data-acc="${k}"><span class="res ${g.res}">${g.res === 'w' ? 'S' : g.res === 'l' ? 'N' : '½'}</span><div class="nm">${g.white ? '♔' : '♚'} gegen ${esc(g.op)} ${g.opElo ? `<span class="sub">(${esc(g.opElo)})</span>` : ''}<div class="sub">${esc(TC[g.tc] || g.tc || '')} · ${fmt(g.t)} · ${esc(g.src)}${done.has(headerKey(pgnHeaders(g.pgn))) ? ' · <span style="color:#81b64c">✓ analysiert</span>' : ''}</div></div><span>›</span></div>`).join('') +
+  el.innerHTML = accGames.map((g, k) => `<div class="g" data-acc="${k}"><span class="res ${g.res}">${g.res === 'w' ? 'S' : g.res === 'l' ? 'N' : '½'}</span><div class="nm"><div class="top"><span>${g.white ? '♔' : '♚'} gegen ${esc(g.op)} ${g.opElo ? `<span class="sub">(${esc(g.opElo)})</span>` : ''}</span><span class="ago">${timeAgo(g.t)}</span></div><div class="sub"><span class="srcchip ${g.src === 'Lichess' ? 'li' : 'cc'}">${esc(g.src)}</span>${esc(TC[g.tc] || g.tc || '')}${done.has(headerKey(pgnHeaders(g.pgn))) ? ' · <span style="color:#81b64c">✓ analysiert</span>' : ''}</div></div><span>›</span></div>`).join('') +
     (canMore ? '<button class="iconbtn" id="bMoreGames" style="width:100%;margin-top:8px">Ältere Partien laden</button>' : '');
 }
 function openAccGame(g) {
@@ -1029,29 +1054,24 @@ $('accList').onclick = e => {
   const g = accGames[+it.dataset.acc];
   if (g) openAccGame(g);
 };
-$('bLoadGames').onclick = () => loadAccountGames(false);
-// Header button: analyse the newest game of the saved accounts in one tap.
-function updateLatestBtn() { $('btnLatest').style.display = (S.ccUser || S.liUser) ? '' : 'none'; }
-$('btnLatest').onclick = async () => {
-  const b = $('btnLatest');
-  if (b.disabled) return;
-  b.disabled = true; const old = b.textContent; b.textContent = '…';
-  const msg = await fetchAccountGames(false);
-  b.disabled = false; b.textContent = old;
-  if (accGames.length) { openAccGame(accGames[0]); return; }
-  $('btnImport').click();
-  if (msg) setTimeout(() => { const err = $('accErr'); err.textContent = msg; err.style.display = 'block'; }, 0);
+$('bLoadGames').onclick = () => loadAccountGames(false, true);
+$('bRefresh').onclick = () => loadAccountGames(false);
+$('accInfo').onclick = e => {
+  if (!e.target.closest('#bEditAcc')) return;
+  $('ccUser').value = S.ccUser || ''; $('liUser').value = S.liUser || '';
+  const c = $('accCard'); c.style.display = c.style.display === 'none' ? '' : 'none';
 };
+$('bHomePgn').onclick = openPgnModal;
+$('bHomeSaved').onclick = () => { renderGameList(); openModal('mSaved'); };
+$('bHomeFree').onclick = () => freeBoard();
+$('btnHome').onclick = () => showView('home');
 {
-  $('accSection').style.display = '';
-  $('bPaste').style.display = '';
   $('bPaste').onclick = async () => {
     try { const t = await navigator.clipboard.readText(); if (t) { $('pgnIn').value = t; importText(t); } }
     catch (e) { showErr('Einfügen wurde nicht erlaubt – tippe lange ins Textfeld und wähle „Einsetzen“.'); }
   };
   accGames = LS.get('sa_accgames', []);
 }
-updateLatestBtn();
 
 // ---------- backup / restore (Einstellungen → Erweitert) ----------
 function showAdv(msg) { $('advMsg').textContent = msg; }
@@ -1116,14 +1136,13 @@ $('fileIn').onchange = e => {
   r.readAsText(f);
   e.target.value = '';
 };
-$('bFree').onclick = () => freeBoard();
 function renderGameList() {
   const list = storedGames();
   const el = $('glist');
-  if (!list.length) { el.innerHTML = ''; return; }
-  el.innerHTML = `<div class="hint" style="margin-top:16px"><b>Letzte Partien</b></div>` + list.map(g => {
+  if (!list.length) { el.innerHTML = '<div class="hint">Noch keine Partien analysiert.</div>'; return; }
+  el.innerHTML = list.map(g => {
     const h = g.h || {};
-    return `<div class="g" data-id="${esc(g.id)}"><div class="nm">${esc(h.White || '?')} – ${esc(h.Black || '?')} <span class="sub">${esc(h.Result || '')}</span><div class="sub">${esc(h.Date || '')}${g.ev ? ' · analysiert' : ''}</div></div><button class="iconbtn" data-del="${esc(g.id)}" aria-label="Löschen">🗑</button></div>`;
+    return `<div class="g" data-id="${esc(g.id)}"><div class="nm">${esc(h.White || '?')} – ${esc(h.Black || '?')} <span class="sub">${esc(h.Result || '')}</span><div class="sub">${g.ev ? 'analysiert' : 'nicht fertig analysiert'} ${g.date ? timeAgo(g.date) : ''}</div></div><button class="iconbtn" data-del="${esc(g.id)}" aria-label="Löschen">✕</button></div>`;
   }).join('');
 }
 $('glist').onclick = e => {
@@ -1193,15 +1212,28 @@ $('bReanalyze').onclick = () => {
   cancelAll(); evals = []; cls = []; closeModals(); renderAll(); startAnalysis();
 };
 
+// ---------- views: start screen <-> board ----------
+let view = 'home';
+function showView(v) {
+  view = v;
+  $('viewHome').style.display = v === 'home' ? '' : 'none';
+  $('viewBoard').style.display = v === 'board' ? '' : 'none';
+  $('btnHome').style.display = v === 'board' ? '' : 'none';
+  if (v === 'home') {
+    Engine.cancel('live');
+    renderAccList();
+    if (Date.now() - lastFetch > 60000) loadAccountGames(false);
+  }
+  window.scrollTo(0, 0);
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && view === 'home') { renderAccList(); if (Date.now() - lastFetch > 60000) loadAccountGames(false); }
+});
+
 // ---------- boot ----------
 function boot() {
-  const list = storedGames();
-  if (list.length) {
-    try { loadGame(C.parsePgn(list[0].pgn), list[0].pgn, list[0]); return; } catch (e) { /* ignore */ }
-  }
-  freeBoard();
-  openModal('mImport');
-  onImportOpen();
+  renderAccInfo();
+  showView('home');
 }
 boot();
 Engine.init().catch(() => {});

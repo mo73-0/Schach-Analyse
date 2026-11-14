@@ -51,4 +51,7 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
 - Daten (Einstellungen, letzte 25 Partien mit Analyse, Töne) liegen in `localStorage` (Schlüssel `sa_*`).
   Sicherung/Wiederherstellung als JSON-Datei unter Einstellungen → „Erweitert“ (bewusst versteckt).
 - Import: Liste der letzten Partien (chess.com-Monatsarchive rückwärts, Lichess mit `until`), „Ältere Partien laden“,
-  bereits analysierte Partien markiert (Abgleich über PGN-Header), Knopf „⚡ Letzte“ im Kopf analysiert die neueste Partie.
+  bereits analysierte Partien markiert (Abgleich über PGN-Header).
+- Startbildschirm (`#viewHome`): beim Öffnen der App kein Brett, sondern „Zuletzt gespielt“ mit Plattform (chess.com/Lichess),
+  Ergebnis, Gegner und „vor X Std.“; Tipp → Analyse (`#viewBoard`), „‹ Start“ führt zurück. Darunter: PGN einfügen,
+  gespeicherte Analysen, Analysebrett. Konten (Benutzernamen) werden auf dem Startbildschirm eingetragen.

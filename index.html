@@ -133,6 +133,16 @@ header .iconbtn{white-space:nowrap}
 /* Homescreen app: iOS blurs/fades content close to the status bar edge -> keep the header clear of that zone */
 @media (display-mode: standalone){.app{padding-top:calc(env(safe-area-inset-top) + 26px)}}
 @media(max-width:430px){header h1 span{display:none}}
+.spinning svg{animation:sp .9s linear infinite}
+.homehead{display:flex;align-items:center;justify-content:space-between;margin:6px 2px 4px}
+.homehead h2{font-size:20px;margin:0}
+.accinfo{font-size:13px;color:var(--muted);margin:0 2px 6px}
+.accinfo button{color:var(--accent);font-weight:700;padding:0;font-size:13px}
+.homeact{margin-top:14px}.homeact .iconbtn{flex:1 1 auto}
+.glist .g .top{display:flex;align-items:baseline;gap:6px}
+.glist .g .ago{margin-left:auto;color:var(--muted);font-size:12px;font-weight:600;white-space:nowrap}
+.srcchip{display:inline-block;font-size:11px;font-weight:800;padding:1px 6px;border-radius:4px;margin-right:4px}
+.srcchip.cc{background:#2f4a22;color:#a9d672}.srcchip.li{background:#3b3b3b;color:#e6e6e6}
 .promo{position:absolute;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:20}
 .promo.open{display:flex}
 .promo div{display:flex;background:#fff;border-radius:8px;padding:6px;gap:4px}
@@ -143,12 +153,24 @@ header .iconbtn{white-space:nowrap}
 <body>
 <div class="app">
   <header>
+    <button class="iconbtn" id="btnHome" style="display:none" aria-label="Zum Startbildschirm">‹ Start</button>
     <h1>♞ Schach<span>-Analyse</span></h1>
-    <button class="iconbtn" id="btnLatest" style="display:none" title="Neueste Partie analysieren">Letzte</button>
-    <button class="iconbtn" id="btnImport">＋ Partie</button>
     <button class="iconbtn" id="btnSettings" aria-label="Einstellungen"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" style="display:block"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.5 7.5 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.5 7.5 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1l.4 2.6h4l.4-2.6c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg></button>
   </header>
-  <div class="layout">
+  <div id="viewHome">
+    <div class="card" id="accCard" style="display:none">
+      <h3>Deine Konten</h3>
+      <div class="hint" style="margin-top:0">Gib deine Benutzernamen ein – die App lädt dann automatisch deine letzten Partien.</div>
+      <div class="acc"><input id="ccUser" placeholder="chess.com-Name" autocapitalize="off" autocorrect="off" spellcheck="false"><input id="liUser" placeholder="Lichess-Name" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+      <button class="primary" id="bLoadGames" style="width:100%">Speichern &amp; Partien laden</button>
+    </div>
+    <div class="homehead"><h2>Zuletzt gespielt</h2><button class="iconbtn" id="bRefresh" aria-label="Aktualisieren"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" style="display:block"><path fill="currentColor" d="M12 4a8 8 0 0 1 7.4 5H17v2h6V5h-2v2.3A10 10 0 1 0 22 13h-2a8 8 0 1 1-8-9z"/></svg></button></div>
+    <div class="accinfo" id="accInfo"></div>
+    <div class="err" id="accErr"></div>
+    <div class="glist" id="accList"></div>
+    <div class="row homeact"><button class="iconbtn" id="bHomePgn">PGN einfügen</button><button class="iconbtn" id="bHomeSaved">Gespeicherte Analysen</button><button class="iconbtn" id="bHomeFree">Analysebrett</button></div>
+  </div>
+  <div class="layout" id="viewBoard" style="display:none">
     <div class="main">
       <div class="player" id="pTop"></div>
       <div class="boardrow">
@@ -184,25 +206,19 @@ header .iconbtn{white-space:nowrap}
 <div class="anaov" id="anaov"><div class="box"><div class="spin"></div><div class="tt">Partie wird analysiert</div><div class="st" id="anaSt">Stockfish wird geladen …</div><div class="progress"><div id="anaBar"></div></div><div class="st" id="anaEta" style="margin:10px 0 0"></div><button class="iconbtn" id="bCancelAna" style="margin-top:12px">Abbrechen</button></div></div>
 <div class="updbar" id="updBar" style="display:none"><span>Neue Version verfügbar</span><button class="primary" id="bUpdate">Neu laden</button></div>
 <div class="modal" id="mImport"><div class="sheet">
-  <h2>Partie importieren <button class="iconbtn" data-close>✕</button></h2>
-  <div id="accSection" style="display:none">
-    <div class="hint" style="margin-top:0">Deine Benutzernamen (werden gespeichert):</div>
-    <div class="acc"><input id="ccUser" placeholder="chess.com" autocapitalize="off" autocorrect="off" spellcheck="false"><input id="liUser" placeholder="Lichess" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
-    <button class="primary" id="bLoadGames" style="width:100%">Meine letzten Partien laden</button>
-    <div class="err" id="accErr"></div>
-    <div class="glist" id="accList"></div>
-    <div class="hint" style="margin-top:18px"><b>Oder PGN einfügen:</b></div>
-  </div>
+  <h2>PGN einfügen <button class="iconbtn" data-close>✕</button></h2>
   <textarea id="pgnIn" placeholder="PGN hier einfügen …&#10;&#10;1. e4 e5 2. Nf3 Nc6 …"></textarea>
   <div class="hint"><b>chess.com:</b> Partie öffnen → Teilen → PGN → Kopieren.<br><b>Lichess:</b> Partie öffnen → Teilen &amp; exportieren → PGN kopieren.<br>Auch FEN-Stellungen oder ganze .pgn-Dateien mit mehreren Partien gehen.</div>
   <div class="row">
     <button class="primary" id="bAnalyze">Analysieren</button>
-    <button class="iconbtn" id="bPaste" style="display:none">Einfügen</button>
+    <button class="iconbtn" id="bPaste">Einfügen</button>
     <label class="iconbtn" style="display:inline-block">Datei …<input type="file" id="fileIn" accept=".pgn,.txt,text/plain" hidden></label>
-    <button class="iconbtn" id="bFree">Freies Brett</button>
   </div>
   <div class="err" id="impErr"></div>
   <div id="multiPick"></div>
+</div></div>
+<div class="modal" id="mSaved"><div class="sheet">
+  <h2>Gespeicherte Analysen <button class="iconbtn" data-close>✕</button></h2>
   <div class="glist" id="glist"></div>
 </div></div>
 
@@ -218,7 +234,7 @@ header .iconbtn{white-space:nowrap}
   </details>
 </div></div>
 
-<script>window.SA_VERSION="7f60c3c0";window.SA_BUILT="14.11.2026 21:37";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
+<script>window.SA_VERSION="951e41f2";window.SA_BUILT="14.11.2026 21:43";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
 <script>// Minimal chess core: board, legal moves, SAN, FEN, PGN. Square 0 = a8, 63 = h1.
 const Chess = (() => {
   const FILES = 'abcdefgh';
@@ -909,6 +925,7 @@ function loadGame(parsed, pgnText, cached) {
     ply = 0;
   }
   closeModals();
+  showView('board');
   renderAll();
   if (!game.free) { saveGame(); if (!(cached && cached.ev)) startAnalysis(); }
   else requestLive();
@@ -1334,7 +1351,7 @@ function renderProgress() {
 }
 function renderEmpty() {
   if (game) return;
-  $('lines').innerHTML = `<div class="empty">Füge eine Partie von chess.com oder Lichess ein, um sie analysieren zu lassen.<br><button class="primary" onclick="document.getElementById('btnImport').click()">Partie importieren</button></div>`;
+  $('lines').innerHTML = '';
 }
 function renderBoardAndInfo() {
   renderBoard(); renderEvalBar(); renderPlayers(); renderFeedback(); renderVarbar();
@@ -1494,12 +1511,7 @@ document.addEventListener('keydown', e => {
 function openModal(id) { $(id).classList.add('open'); }
 function closeModals() { document.querySelectorAll('.modal').forEach(m => m.classList.remove('open')); }
 document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if (e.target === m || e.target.closest('[data-close]')) closeModals(); }));
-$('btnImport').onclick = () => { $('impErr').style.display = 'none'; $('multiPick').innerHTML = ''; renderGameList(); openModal('mImport'); onImportOpen(); };
-function onImportOpen() {
-  $('ccUser').value = S.ccUser || ''; $('liUser').value = S.liUser || '';
-  renderAccList();
-  if (S.ccUser || S.liUser) loadAccountGames();
-}
+function openPgnModal() { $('impErr').style.display = 'none'; $('multiPick').innerHTML = ''; openModal('mImport'); }
 $('btnSettings').onclick = () => { renderSettings(); openModal('mSettings'); };
 
 function showErr(msg) { const e = $('impErr'); e.textContent = msg; e.style.display = 'block'; }
@@ -1603,23 +1615,52 @@ async function fetchAccountGames(more) {
   if (!more) LS.set('sa_accgames', accGames.slice(0, 40));
   return res.filter(r => r.status === 'rejected').map(r => r.reason.message).join(' · ');
 }
-async function loadAccountGames(more = false) {
-  if (!more) { S.ccUser = $('ccUser').value.trim(); S.liUser = $('liUser').value.trim(); saveSettings(); updateLatestBtn(); }
+let lastFetch = 0, fetching = false;
+async function loadAccountGames(more = false, fromInputs = false) {
+  if (fromInputs) {
+    S.ccUser = $('ccUser').value.trim(); S.liUser = $('liUser').value.trim(); saveSettings();
+    if (S.ccUser || S.liUser) $('accCard').style.display = 'none';
+    renderAccInfo();
+  }
   const err = $('accErr'); err.style.display = 'none';
-  if (!S.ccUser && !S.liUser) { err.textContent = 'Gib mindestens einen Benutzernamen ein.'; err.style.display = 'block'; return; }
-  if (!more) $('accList').innerHTML = '<div class="hint">Lade Partien …</div>';
+  if (!S.ccUser && !S.liUser) { if (fromInputs) { err.textContent = 'Gib mindestens einen Benutzernamen ein.'; err.style.display = 'block'; } return; }
+  if (fetching) return;
+  fetching = true; lastFetch = Date.now();
+  $('bRefresh').classList.add('spinning');
+  if (!more && !accGames.length) $('accList').innerHTML = '<div class="hint">Lade Partien …</div>';
   else { const b = $('bMoreGames'); if (b) { b.disabled = true; b.textContent = 'Lade …'; } }
   const msg = await fetchAccountGames(more);
+  fetching = false;
+  $('bRefresh').classList.remove('spinning');
   if (msg) { err.textContent = msg; err.style.display = 'block'; }
   renderAccList();
 }
+function timeAgo(t) {
+  const s = (Date.now() - t) / 1000;
+  if (s < 60) return 'gerade eben';
+  const m = Math.floor(s / 60); if (m < 60) return `vor ${m} Min.`;
+  const h = Math.floor(m / 60); if (h < 24) return `vor ${h} Std.`;
+  const d = Math.floor(h / 24); if (d === 1) return 'gestern'; if (d < 7) return `vor ${d} Tagen`;
+  const w = Math.floor(d / 7); if (d < 30) return w === 1 ? 'vor 1 Woche' : `vor ${w} Wochen`;
+  const mo = Math.floor(d / 30); if (d < 365) return mo === 1 ? 'vor 1 Monat' : `vor ${mo} Monaten`;
+  const y = Math.floor(d / 365); return y === 1 ? 'vor 1 Jahr' : `vor ${y} Jahren`;
+}
+function renderAccInfo() {
+  const parts = [];
+  if (S.ccUser) parts.push('chess.com: <b>' + esc(S.ccUser) + '</b>');
+  if (S.liUser) parts.push('Lichess: <b>' + esc(S.liUser) + '</b>');
+  $('accInfo').innerHTML = parts.length ? parts.join(' · ') + ' · <button id="bEditAcc">ändern</button>' : '';
+  if (!parts.length) { $('accCard').style.display = ''; }
+}
 function renderAccList() {
   const el = $('accList');
-  if (!accGames.length) { el.innerHTML = ''; return; }
+  if (!accGames.length) {
+    el.innerHTML = (S.ccUser || S.liUser) && !fetching ? '<div class="hint">Keine Partien gefunden.</div>' : '';
+    return;
+  }
   const done = analysedKeys();
-  const fmt = t => { const d = new Date(t); return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' }) + ' ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }); };
   const canMore = accState && ((accState.cc && !accState.cc.done) || (accState.li && !accState.li.done));
-  el.innerHTML = accGames.map((g, k) => `<div class="g" data-acc="${k}"><span class="res ${g.res}">${g.res === 'w' ? 'S' : g.res === 'l' ? 'N' : '½'}</span><div class="nm">${g.white ? '♔' : '♚'} gegen ${esc(g.op)} ${g.opElo ? `<span class="sub">(${esc(g.opElo)})</span>` : ''}<div class="sub">${esc(TC[g.tc] || g.tc || '')} · ${fmt(g.t)} · ${esc(g.src)}${done.has(headerKey(pgnHeaders(g.pgn))) ? ' · <span style="color:#81b64c">✓ analysiert</span>' : ''}</div></div><span>›</span></div>`).join('') +
+  el.innerHTML = accGames.map((g, k) => `<div class="g" data-acc="${k}"><span class="res ${g.res}">${g.res === 'w' ? 'S' : g.res === 'l' ? 'N' : '½'}</span><div class="nm"><div class="top"><span>${g.white ? '♔' : '♚'} gegen ${esc(g.op)} ${g.opElo ? `<span class="sub">(${esc(g.opElo)})</span>` : ''}</span><span class="ago">${timeAgo(g.t)}</span></div><div class="sub"><span class="srcchip ${g.src === 'Lichess' ? 'li' : 'cc'}">${esc(g.src)}</span>${esc(TC[g.tc] || g.tc || '')}${done.has(headerKey(pgnHeaders(g.pgn))) ? ' · <span style="color:#81b64c">✓ analysiert</span>' : ''}</div></div><span>›</span></div>`).join('') +
     (canMore ? '<button class="iconbtn" id="bMoreGames" style="width:100%;margin-top:8px">Ältere Partien laden</button>' : '');
 }
 function openAccGame(g) {
@@ -1633,29 +1674,24 @@ $('accList').onclick = e => {
   const g = accGames[+it.dataset.acc];
   if (g) openAccGame(g);
 };
-$('bLoadGames').onclick = () => loadAccountGames(false);
-// Header button: analyse the newest game of the saved accounts in one tap.
-function updateLatestBtn() { $('btnLatest').style.display = (S.ccUser || S.liUser) ? '' : 'none'; }
-$('btnLatest').onclick = async () => {
-  const b = $('btnLatest');
-  if (b.disabled) return;
-  b.disabled = true; const old = b.textContent; b.textContent = '…';
-  const msg = await fetchAccountGames(false);
-  b.disabled = false; b.textContent = old;
-  if (accGames.length) { openAccGame(accGames[0]); return; }
-  $('btnImport').click();
-  if (msg) setTimeout(() => { const err = $('accErr'); err.textContent = msg; err.style.display = 'block'; }, 0);
+$('bLoadGames').onclick = () => loadAccountGames(false, true);
+$('bRefresh').onclick = () => loadAccountGames(false);
+$('accInfo').onclick = e => {
+  if (!e.target.closest('#bEditAcc')) return;
+  $('ccUser').value = S.ccUser || ''; $('liUser').value = S.liUser || '';
+  const c = $('accCard'); c.style.display = c.style.display === 'none' ? '' : 'none';
 };
+$('bHomePgn').onclick = openPgnModal;
+$('bHomeSaved').onclick = () => { renderGameList(); openModal('mSaved'); };
+$('bHomeFree').onclick = () => freeBoard();
+$('btnHome').onclick = () => showView('home');
 {
-  $('accSection').style.display = '';
-  $('bPaste').style.display = '';
   $('bPaste').onclick = async () => {
     try { const t = await navigator.clipboard.readText(); if (t) { $('pgnIn').value = t; importText(t); } }
     catch (e) { showErr('Einfügen wurde nicht erlaubt – tippe lange ins Textfeld und wähle „Einsetzen“.'); }
   };
   accGames = LS.get('sa_accgames', []);
 }
-updateLatestBtn();
 
 // ---------- backup / restore (Einstellungen → Erweitert) ----------
 function showAdv(msg) { $('advMsg').textContent = msg; }
@@ -1720,14 +1756,13 @@ $('fileIn').onchange = e => {
   r.readAsText(f);
   e.target.value = '';
 };
-$('bFree').onclick = () => freeBoard();
 function renderGameList() {
   const list = storedGames();
   const el = $('glist');
-  if (!list.length) { el.innerHTML = ''; return; }
-  el.innerHTML = `<div class="hint" style="margin-top:16px"><b>Letzte Partien</b></div>` + list.map(g => {
+  if (!list.length) { el.innerHTML = '<div class="hint">Noch keine Partien analysiert.</div>'; return; }
+  el.innerHTML = list.map(g => {
     const h = g.h || {};
-    return `<div class="g" data-id="${esc(g.id)}"><div class="nm">${esc(h.White || '?')} – ${esc(h.Black || '?')} <span class="sub">${esc(h.Result || '')}</span><div class="sub">${esc(h.Date || '')}${g.ev ? ' · analysiert' : ''}</div></div><button class="iconbtn" data-del="${esc(g.id)}" aria-label="Löschen">🗑</button></div>`;
+    return `<div class="g" data-id="${esc(g.id)}"><div class="nm">${esc(h.White || '?')} – ${esc(h.Black || '?')} <span class="sub">${esc(h.Result || '')}</span><div class="sub">${g.ev ? 'analysiert' : 'nicht fertig analysiert'} ${g.date ? timeAgo(g.date) : ''}</div></div><button class="iconbtn" data-del="${esc(g.id)}" aria-label="Löschen">✕</button></div>`;
   }).join('');
 }
 $('glist').onclick = e => {
@@ -1797,15 +1832,28 @@ $('bReanalyze').onclick = () => {
   cancelAll(); evals = []; cls = []; closeModals(); renderAll(); startAnalysis();
 };
 
+// ---------- views: start screen <-> board ----------
+let view = 'home';
+function showView(v) {
+  view = v;
+  $('viewHome').style.display = v === 'home' ? '' : 'none';
+  $('viewBoard').style.display = v === 'board' ? '' : 'none';
+  $('btnHome').style.display = v === 'board' ? '' : 'none';
+  if (v === 'home') {
+    Engine.cancel('live');
+    renderAccList();
+    if (Date.now() - lastFetch > 60000) loadAccountGames(false);
+  }
+  window.scrollTo(0, 0);
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && view === 'home') { renderAccList(); if (Date.now() - lastFetch > 60000) loadAccountGames(false); }
+});
+
 // ---------- boot ----------
 function boot() {
-  const list = storedGames();
-  if (list.length) {
-    try { loadGame(C.parsePgn(list[0].pgn), list[0].pgn, list[0]); return; } catch (e) { /* ignore */ }
-  }
-  freeBoard();
-  openModal('mImport');
-  onImportOpen();
+  renderAccInfo();
+  showView('home');
 }
 boot();
 Engine.init().catch(() => {});
