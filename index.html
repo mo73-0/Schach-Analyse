@@ -130,6 +130,8 @@ textarea{width:100%;min-height:140px;background:#1e1d1b;color:#fff;border:1px so
 .updbar{position:fixed;left:10px;right:10px;bottom:max(12px,env(safe-area-inset-bottom));z-index:70;background:#3d3a35;border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px;box-shadow:0 6px 20px rgba(0,0,0,.5);font-weight:700}
 .updbar span{flex:1}.updbar .primary{padding:8px 14px;font-size:14px;box-shadow:none}
 header .iconbtn{white-space:nowrap}
+/* Homescreen app: iOS blurs/fades content close to the status bar edge -> keep the header clear of that zone */
+@media (display-mode: standalone){.app{padding-top:calc(env(safe-area-inset-top) + 26px)}}
 @media(max-width:430px){header h1 span{display:none}}
 .promo{position:absolute;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:20}
 .promo.open{display:flex}
@@ -216,7 +218,7 @@ header .iconbtn{white-space:nowrap}
   </details>
 </div></div>
 
-<script>window.SA_VERSION="5a0f4892";window.SA_BUILT="14.11.2026 21:33";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
+<script>window.SA_VERSION="7f60c3c0";window.SA_BUILT="14.11.2026 21:37";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
 <script>// Minimal chess core: board, legal moves, SAN, FEN, PGN. Square 0 = a8, 63 = h1.
 const Chess = (() => {
   const FILES = 'abcdefgh';
