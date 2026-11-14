@@ -296,7 +296,6 @@ header .iconbtn{white-space:nowrap}
 <div class="modal" id="mSettings"><div class="sheet">
   <h2>Einstellungen <button class="iconbtn" data-close>✕</button></h2>
   <div id="setList"></div>
-  <div class="row"><button class="primary" id="bReanalyze">Partie neu analysieren</button></div>
   <details class="adv"><summary>Erweitert</summary>
     <div class="hint">Sichert Einstellungen, gespeicherte Partien mit Analyse, Benutzernamen und Töne in einer Datei. Beim Wiederherstellen werden die aktuellen Daten durch die der Sicherung ersetzt.</div>
     <div class="row"><button class="iconbtn" id="bBackup">Daten sichern</button><label class="iconbtn">Wiederherstellen<input type="file" id="restoreIn" accept=".json,application/json" hidden></label></div>
@@ -305,7 +304,7 @@ header .iconbtn{white-space:nowrap}
   </details>
 </div></div>
 
-<script>window.SA_VERSION="16d6bfe7";window.SA_BUILT="14.11.2026 23:09";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
+<script>window.SA_VERSION="fb079c2b";window.SA_BUILT="14.11.2026 23:10";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
 <script>// Minimal chess core: board, legal moves, SAN, FEN, PGN. Square 0 = a8, 63 = h1.
 const Chess = (() => {
   const FILES = 'abcdefgh';
@@ -1980,10 +1979,6 @@ $('setList').addEventListener('change', e => {
   if (e.target.closest('[data-rng]')) { liveCache.clear(); if (game) renderBoardAndInfo(); }
 });
 $('bCancelAna').onclick = () => { analysisToken++; cancelAll('full'); analyzing = false; showOverlay(false); renderAll(); };
-$('bReanalyze').onclick = () => {
-  if (!game || game.free) { closeModals(); return; }
-  cancelAll(); evals = []; cls = []; closeModals(); renderAll(); startAnalysis();
-};
 
 // ---------- review overview (shown after the analysis) ----------
 // Rough playing-strength estimate from one game's accuracy (own heuristic, not chess.com's formula).

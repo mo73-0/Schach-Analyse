@@ -1267,10 +1267,6 @@ $('setList').addEventListener('change', e => {
   if (e.target.closest('[data-rng]')) { liveCache.clear(); if (game) renderBoardAndInfo(); }
 });
 $('bCancelAna').onclick = () => { analysisToken++; cancelAll('full'); analyzing = false; showOverlay(false); renderAll(); };
-$('bReanalyze').onclick = () => {
-  if (!game || game.free) { closeModals(); return; }
-  cancelAll(); evals = []; cls = []; closeModals(); renderAll(); startAnalysis();
-};
 
 // ---------- review overview (shown after the analysis) ----------
 // Rough playing-strength estimate from one game's accuracy (own heuristic, not chess.com's formula).
