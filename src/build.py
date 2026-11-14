@@ -6,7 +6,7 @@ t = open(os.path.join(here, 'template.html')).read()
 t = t.replace('<!--HEAD-->',
   '<link rel="manifest" href="manifest.webmanifest">\n'
   '<link rel="apple-touch-icon" href="apple-touch-icon.png">\n'
-  '<meta name="apple-mobile-web-app-title" content="Schach-Analyse">\n'
+  '<meta name="apple-mobile-web-app-title" content="Zugzwang">\n'
   '<meta name="apple-mobile-web-app-status-bar-style" content="black">')
 # App version = hash of all sources; written into the page and into version.json (update notice).
 src_hash = hashlib.sha256()

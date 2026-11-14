@@ -1,6 +1,6 @@
 {
-  "name": "Schach-Analyse",
-  "short_name": "Schach",
+  "name": "Zugzwang",
+  "short_name": "Zugzwang",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

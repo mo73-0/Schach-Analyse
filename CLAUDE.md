@@ -1,6 +1,6 @@
-# Schach-Analyse – Hinweise für Claude
+# Zugzwang (Repo: Schach-Analyse) – Hinweise für Claude
 
-Persönliche Schach-Analyse-Web-App (Deutsch), läuft komplett im Browser und wird über
+Persönliche Schach-Analyse-Web-App **„Zugzwang“** (Deutsch), läuft komplett im Browser und wird über
 **GitHub Pages** vom Branch `main` (Ordner `/`) ausgeliefert: https://mo73-0.github.io/Schach-Analyse/
 Hauptnutzer: iPhone, als Homescreen-App (PWA). Alle Texte in der App sind Deutsch.
 
@@ -82,3 +82,5 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
 - Ergebnis-/Abschlusstext (Übersicht-Kopf, Startkarte im Brett) immer Deutsch über `resultText(h, letzteFen)`: übersetzt
   chess.com-`Termination` („X won by checkmate/on time/…“, „Game drawn by …“) und Lichess („Normal“ → aus Endstellung
   Matt/Patt/sonst Aufgabe, „Time forfeit“ → auf Zeit).
+- App-Name „Zugzwang“ (Titel, Manifest, Homescreen). Der Name steht oben nur auf dem Startbildschirm, in Übersicht/Brett nicht.
+  Sicherungsdateien behalten intern `app: 'schach-analyse'` (Kompatibilität mit alten Sicherungen).

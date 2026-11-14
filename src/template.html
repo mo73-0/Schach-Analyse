@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#312e2b">
 <!--HEAD-->
-<title>Schach-Analyse</title>
+<title>Zugzwang</title>
 <style>
 :root{--bg:#312e2b;--panel:#262522;--panel2:#3a3733;--text:#fff;--muted:#bab9b8;--accent:#81b64c;--light:#ebecd0;--dark:#739552}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -140,7 +140,7 @@ textarea{width:100%;min-height:140px;background:#1e1d1b;color:#fff;border:1px so
 header .iconbtn{white-space:nowrap}
 /* Homescreen app: iOS blurs/fades content close to the status bar edge -> keep the header clear of that zone */
 @media (display-mode: standalone){.app{padding-top:calc(env(safe-area-inset-top) + 26px)}}
-@media(max-width:430px){header h1 .t span{display:none}body[data-view=board] header h1 .t{display:none}}
+body:not([data-view=home]) header h1 .t{display:none}
 .spinning svg{animation:sp .9s linear infinite}
 .rv{padding:14px}
 .rvhead{text-align:center;font-weight:700;margin-bottom:10px}.rvhead span{color:var(--muted);font-weight:500;font-size:13px}
@@ -222,7 +222,7 @@ header .iconbtn{white-space:nowrap}
 <div class="app">
   <header>
     <button class="iconbtn" id="btnHome" style="display:none" aria-label="Zum Startbildschirm">‹ Start</button>
-    <h1>♞ <span class="t">Schach<span>-Analyse</span></span></h1>
+    <h1><span class="t">♞ Zug<span>zwang</span></span></h1>
     <button class="iconbtn" id="btnReview" style="display:none">Übersicht</button>
     <button class="iconbtn" id="bFlip" style="display:none" aria-label="Brett drehen"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" style="display:block"><path fill="currentColor" d="M7 3 2.5 7.5H6V17h2V7.5h3.5zm10 18 4.5-4.5H18V7h-2v9.5h-3.5z"/></svg></button>
     <button class="iconbtn" id="btnSettings" aria-label="Einstellungen"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" style="display:block"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.5 7.5 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.5 7.5 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1l.4 2.6h4l.4-2.6c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg></button>

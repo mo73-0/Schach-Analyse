@@ -1208,8 +1208,8 @@ $('bBackup').onclick = async () => {
   const data = {};
   for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith('sa_') && !k.startsWith('sa_cch_')) data[k] = localStorage.getItem(k); }
   const json = JSON.stringify({ app: 'schach-analyse', format: 1, created: new Date().toISOString(), data });
-  const name = `schach-analyse-sicherung-${new Date().toISOString().slice(0, 10)}.json`;
-  const r = await giveFile(name, json, 'Schach-Analyse Sicherung');
+  const name = `zugzwang-sicherung-${new Date().toISOString().slice(0, 10)}.json`;
+  const r = await giveFile(name, json, 'Zugzwang Sicherung');
   if (r === 'shared') showAdv('Sicherung erstellt. Lege die Datei z. B. in „Dateien“ oder iCloud ab.');
   else if (r === 'downloaded') showAdv('Sicherung heruntergeladen: ' + name);
 };
@@ -1221,7 +1221,7 @@ $('restoreIn').onchange = e => {
   r.onload = () => {
     let b;
     try { b = JSON.parse(r.result); } catch (err) { showAdv('Diese Datei ist keine gültige Sicherung.'); return; }
-    if (!b || b.app !== 'schach-analyse' || !b.data || typeof b.data !== 'object') { showAdv('Diese Datei ist keine Sicherung der Schach-Analyse.'); return; }
+    if (!b || b.app !== 'schach-analyse' || !b.data || typeof b.data !== 'object') { showAdv('Diese Datei ist keine Sicherung von Zugzwang.'); return; }
     const keys = Object.keys(b.data).filter(k => k.startsWith('sa_') && typeof b.data[k] === 'string');
     try {
       for (let i = localStorage.length - 1; i >= 0; i--) { const k = localStorage.key(i); if (k && k.startsWith('sa_')) localStorage.removeItem(k); }
