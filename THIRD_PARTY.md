@@ -6,7 +6,7 @@ Nur frei lizenzierte Inhalte, deren Lizenz mit GPLv3 vereinbar ist, dürfen ins 
 | Bestandteil | Wo | Herkunft | Lizenz | Pflichten |
 | --- | --- | --- | --- | --- |
 | Stockfish 19 (Engine, inkl. NNUE-Netz „lite“) | `stockfish/` | [official-stockfish/Stockfish](https://github.com/official-stockfish/Stockfish), WASM-Build von [nmrugg/stockfish.js](https://github.com/nmrugg/stockfish.js) v19.0.1 | GPLv3 | Quellcode des Projekts offen halten, `LICENSE` (GPLv3) beilegen, Urheberhinweis in App/README – erfüllt |
-| Figuren „cburnett“ | `src/pieces.js`, App-Icons (weißer König; „!!“-Plakette und Brett selbst gezeichnet) | Colin M.L. Burnett (Wikimedia Commons, auch in Lichess) | GPLv2+ (laut Lichess `COPYING.md`), auf Wikimedia zusätzlich CC BY-SA 3.0 | Namensnennung – in App-Fußzeile und README erfüllt |
+| Figuren „cburnett“ | `src/pieces.js`, App-Icons (weißer König, Kreuz weiß umgefärbt; „!!“-Plakette selbst gezeichnet) | Colin M.L. Burnett (Wikimedia Commons, auch in Lichess) | GPLv2+ (laut Lichess `COPYING.md`), auf Wikimedia zusätzlich CC BY-SA 3.0 | Namensnennung – in App-Fußzeile und README erfüllt |
 | Eröffnungsdatenbank (Theoriezüge, Eröffnungsnamen) | `src/openings.js` (erzeugt mit `src/gen_openings.js`) | [lichess-org/chess-openings](https://github.com/lichess-org/chess-openings), Stand 3ba6b20 | CC0 1.0 (Public Domain), geprüft in README und `COPYING.txt` des Repos | keine (Quellenangabe freiwillig, steht in der Fußzeile) |
 | App-Code (`src/`) | `src/` | selbst geschrieben | GPLv3 | – |
 
