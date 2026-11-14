@@ -62,6 +62,8 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
 - Gespeicherte Analysen enthalten `st` (Genauigkeit, eigene Farbe, Trainingsaufgaben = eigene Fehler/Patzer/Verpasst mit bestem Zug);
   ältere Einträge werden im Hintergrund nachberechnet (`enrichStored`). Trainer: Brett im Modus `game.trainer` (`body.training`),
   Fortschritt in `sa_train`.
+- Kalibrierung an chess.com: „Gespeicherte Analysen“ → „Kalibrierungsdaten exportieren“ (JSON mit analysierten Partien inkl.
+  Engine-Daten und den PGNs der zuletzt gespielten Partien); Vergleich mit chess.com-Review-Screenshots des Nutzers.
 - Übersicht (`#viewReview`) nach jeder Analyse bzw. beim Öffnen einer analysierten Partie: Spieler, Genauigkeit,
   Bewertungsverlauf, Anzahl je Bewertung (Hauptkategorien, Rest aufklappbar), geschätzte Spielstärke (eigene Heuristik
   aus der Genauigkeit, `estRating`), Zugliste; Knopf „Partieanalyse starten“ ist unten am Bildschirm fixiert (`.rvfoot`, position:fixed – sticky funktioniert wegen overflow-x auf body nicht). Im Brett führt „Übersicht“ zurück.

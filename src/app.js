@@ -1131,24 +1131,36 @@ $('btnHome').onclick = () => showView('home');
 
 // ---------- backup / restore (Einstellungen → Erweitert) ----------
 function showAdv(msg) { $('advMsg').textContent = msg; }
+// Hand a generated JSON file to the user: share sheet on iPhone, download elsewhere. Returns 'shared' | 'downloaded' | 'aborted'.
+async function giveFile(name, json, title) {
+  const file = new File([json], name, { type: 'application/json' });
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title }); return 'shared'; }
+  } catch (e) { if (e.name === 'AbortError') return 'aborted'; }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(file); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  return 'downloaded';
+}
 $('bBackup').onclick = async () => {
   const data = {};
   for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith('sa_') && !k.startsWith('sa_cch_')) data[k] = localStorage.getItem(k); }
   const json = JSON.stringify({ app: 'schach-analyse', format: 1, created: new Date().toISOString(), data });
   const name = `schach-analyse-sicherung-${new Date().toISOString().slice(0, 10)}.json`;
-  const file = new File([json], name, { type: 'application/json' });
-  try {
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file], title: 'Schach-Analyse Sicherung' });
-      showAdv('Sicherung erstellt. Lege die Datei z. B. in „Dateien“ oder iCloud ab.');
-      return;
-    }
-  } catch (e) { if (e.name === 'AbortError') return; }
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(file); a.download = name;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-  showAdv('Sicherung heruntergeladen: ' + name);
+  const r = await giveFile(name, json, 'Schach-Analyse Sicherung');
+  if (r === 'shared') showAdv('Sicherung erstellt. Lege die Datei z. B. in „Dateien“ oder iCloud ab.');
+  else if (r === 'downloaded') showAdv('Sicherung heruntergeladen: ' + name);
+};
+// Calibration export: analysed games (with our engine data) + the recently played games list (PGNs),
+// so the analysis can be compared with chess.com's Game Review offline.
+$('bCalib').onclick = async () => {
+  const analysed = storedGames().filter(g => g.ev).map(g => ({ pgn: g.pgn, strength: g.depth, ev: g.ev, st: g.st || null }));
+  const recent = accGames.slice(0, 60).map(g => ({ src: g.src, t: g.t, tc: g.tc, op: g.op, res: g.res, pgn: g.pgn }));
+  const json = JSON.stringify({ app: 'schach-analyse', kind: 'calibration', version: window.SA_VERSION || '', created: new Date().toISOString(),
+    settings: { strength: S.strength }, me: [S.ccUser, S.liUser].filter(Boolean), analysed, recent });
+  const r = await giveFile(`schach-analyse-kalibrierung-${new Date().toISOString().slice(0, 10)}.json`, json, 'Schach-Analyse Kalibrierung');
+  $('calibMsg').textContent = r === 'aborted' ? '' : `Exportiert: ${analysed.length} analysierte und ${recent.length} zuletzt gespielte Partien.`;
 };
 $('restoreIn').onchange = e => {
   const f = e.target.files[0];
