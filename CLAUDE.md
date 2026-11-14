@@ -18,6 +18,15 @@ Hauptnutzer: iPhone, als Homescreen-App (PWA). Alle Texte in der App sind Deutsc
 - `stockfish/` – Stockfish 19 Lite single-threaded (stockfish.js von nmrugg, GPLv3)
 - `manifest.webmanifest`, Icons – PWA
 
+## Lizenzen – höchste Priorität
+Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtliche Probleme.
+- **Vor jedem Commit**, der fremde Dateien, Code-Schnipsel, Grafiken, Töne, Schriften oder Bibliotheken hinzufügt:
+  Lizenz an der Originalquelle prüfen (nicht raten), nur GPLv3-kompatible freie Lizenzen verwenden,
+  und den Eintrag in `THIRD_PARTY.md` ergänzen. Im Zweifel: **nicht** einbauen und den Nutzer fragen.
+- Nichts von chess.com übernehmen (Grafiken, Töne, Figuren, Logos, Namen als Markenzeichen).
+- Keine nicht freien Inhalte ins Repo, auch nicht vorübergehend (sie bleiben sonst in der Git-Historie).
+- Lizenzpflichten (Namensnennung, `LICENSE`) bei Änderungen erhalten.
+
 ## Arbeitsablauf bei Änderungen
 1. Nur Dateien in `src/` (bzw. `sw.js`/Assets) ändern.
 2. `node src/test_chess.js` (wenn `chess.js` geändert) und `python3 src/build.py` ausführen.
