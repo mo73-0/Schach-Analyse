@@ -109,3 +109,6 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
   endet); Material → nur der Schlüsselzug, wenn er das Material schon gewinnt, sonst max. 2 eigene Züge; Gegnerzüge spielt
   die App. Abweichender 1. Zug wird von der Engine geprüft (`checkTrainMove`): richtig, wenn er die Bewertung von `bestCp`
   hält (−60 cp; bei Matt-Aufgaben muss Matt bleiben). Jeder sofort mattsetzende Zug zählt. `why` nach der Lösung.
+- Trainer-Navigation: Steuerleiste (Anfang/◀/▶/Ende) ist auch im Training sichtbar, z. B. um den Gegnerzug nochmal
+  anzusehen. Züge nur in der aktuellen Aufgabenstellung (`ply === positions.length - 1`); ein Tipp aufs Brett beim
+  Zurückblättern springt dorthin zurück. `trainerApply` setzt `ply` immer ans Ende.

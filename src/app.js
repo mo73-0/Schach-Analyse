@@ -1064,6 +1064,8 @@ function doMove(m) {
 boardEl.addEventListener('click', e => {
   const sqEl = e.target.closest('.sq');
   if (!sqEl || !game) return;
+  // training: while browsing earlier moves, a tap on the board returns to the task position
+  if (game.trainer && ply !== positions.length - 1) { if (!trainSt || !trainSt.busy) goto(positions.length - 1); return; }
   const s = +sqEl.dataset.s;
   const p = C.parseFen(curFen());
   const piece = p.b[s];
@@ -1924,13 +1926,15 @@ function trainerApply(u) {
   Sound.forMove({ san: s }, C.toFen(np));
   const mv = { san: s, uci: u, from: m.from, to: m.to, piece: m.piece, captured: m.captured, promo: m.promo || null, fenBefore: fen, fenAfter: C.toFen(np) };
   game.moves.push(mv);
-  positions.push(C.toFen(np)); ply++;
+  positions.push(C.toFen(np)); ply = positions.length - 1;
   return mv;
 }
 const taskLine = t => (t.line && t.line.length ? t.line : [t.best]);
 function trainerMove(m) {
   const t = trainTasks[trainIdx];
   if (!t || trainSt.done || trainSt.busy) return;
+  // moves only from the current task position; while browsing back, a move attempt jumps back to it
+  if (ply !== positions.length - 1) { goto(positions.length - 1); return; }
   const u = C.uci(m), line = taskLine(t), step = trainSt.step;
   const p = C.parseFen(curFen()), san = C.san(p, m);
   const mates = C.status(C.make(p, m)) === 'mate';
@@ -2001,7 +2005,7 @@ function wrongTrainMove(t, san, shown, already, u) {
     renderBoard(); renderTrainCard();
     setTimeout(() => {
       if (!game || !game.trainer || trainTasks[trainIdx] !== t || !mv) { if (trainSt) trainSt.busy = false; return; }
-      game.moves.pop(); positions.pop(); ply--;
+      game.moves.pop(); positions.pop(); ply = positions.length - 1;
       animMove(mv, true);
       renderBoard();
       trainSt.busy = false;
