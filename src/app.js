@@ -281,14 +281,44 @@ function gameStats(g, pos, ev, cl) {
   const me = myColor(g.headers);
   const tr = [];
   if (me) cl.forEach((c, i) => {
-    if (!c || !['mistake', 'blunder', 'miss'].includes(c.type) || !c.bestUci) return;
+    if (!c || !['inaccuracy', 'mistake', 'blunder', 'miss'].includes(c.type) || !c.bestUci) return;
     if (C.parseFen(pos[i]).turn !== me) return;
-    const ls = ev[i] && ev[i].lines || [];
-    const sg = me === 'w' ? 1 : -1;
-    const alt = ls[1] && ls[1].pv && ls[1].pv[0] && A.winPct(sg * ls[0].cpw) - A.winPct(sg * ls[1].cpw) < 4 ? ls[1].pv[0] : null;
-    tr.push({ ply: i, fen: pos[i], best: c.bestUci, alt, played: g.moves[i].san, type: c.type, pv: (ls[0] && ls[0].pv || []).slice(0, 3) });
+    const task = trainTask(g, pos, ev, c, i, me);
+    // the same tactic often stays on the board for several moves – keep it only once
+    if (task && !tr.some(x => x.best === task.best && x.mo === task.mo)) tr.push(task);
   });
-  return { v: 2, aw: A.accuracy(wl), ab: A.accuracy(bl), me, tr };
+  return { v: 3, aw: A.accuracy(wl), ab: A.accuracy(bl), me, tr };
+}
+// Only mistakes with a real learning effect become training tasks:
+//  - a missed tactic: mate in <= 5, or a short line that wins >= 2 points of material (fork, loose piece, combination),
+//    not just a plain recapture and not when the game was already completely won anyway;
+//  - or a threat that had to be met: the played move allowed mate / lost a piece and only one move held the position.
+function trainTask(g, pos, ev, c, i, me) {
+  const ls = ev[i] && ev[i].lines || [];
+  if (!ls[0] || !ls[0].pv || !ls[0].pv.length) return null;
+  const sg = me === 'w' ? 1 : -1;
+  const wp = l => A.winPct(sg * l.cpw);
+  let mo = { kind: null, gain: 0 };
+  try { mo = Explain.lineMotif(pos[i], ls[0]); } catch (e) { /* ignore */ }
+  const prev = i > 0 ? g.moves[i - 1] : null;
+  const recapture = prev && prev.captured && mo.m && mo.m.to === prev.to && !mo.m.promo && mo.kind !== 'mate';
+  let kind = null, why = '';
+  if (mo.kind === 'mate' && mo.n <= 5) kind = Explain.label(mo);
+  else if (mo.kind && mo.gain >= 2 && !recapture && c.loss >= 0.08 && c.eb < 0.97) kind = Explain.label(mo);
+  if (kind) why = Explain.bestText(mo);
+  else if (['mistake', 'blunder', 'miss'].includes(c.type) && c.eb > 0.10 && ls[1] && wp(ls[0]) - wp(ls[1]) >= 15) {
+    const e1 = ev[i + 1], l1 = e1 && !e1.terminal && e1.lines[0];
+    let opp = { kind: null, gain: 0 };
+    try { if (l1) opp = Explain.lineMotif(pos[i + 1], l1); } catch (e) { /* ignore */ }
+    if (opp.kind === 'mate' || opp.gain >= 3) {
+      kind = 'Drohung abwehren';
+      const bs = mo.san || '';
+      why = opp.kind === 'mate' ? `Der Gegner drohte Matt (${opp.san}). Nur ${bs} hält die Stellung.` : `Nach deinem Zug gewinnt ${opp.san} Material. Nur ${bs} hält die Stellung.`;
+    }
+  }
+  if (!kind) return null;
+  const alt = ls[1] && ls[1].pv && ls[1].pv[0] && wp(ls[0]) - wp(ls[1]) < 4 ? ls[1].pv[0] : null;
+  return { ply: i, fen: pos[i], best: c.bestUci, alt, played: g.moves[i].san, type: c.type, pv: ls[0].pv.slice(0, 3), mo: kind, why };
 }
 // German result sentence from Result/Termination headers (chess.com: "X won by checkmate", Lichess: "Normal", "Time forfeit").
 function resultText(h, lastFen) {
@@ -735,10 +765,23 @@ async function classifyVariation() {
       const prev = k === 0 ? cls[b - 1] : v.moves[k - 1].cls;
       const pseudo = { headers: game.headers, moves: [...game.moves.slice(0, b), ...v.moves] };
       mv.cls = e0 && e1 ? A.classify(pseudo, fens, evs, b + k, prev) : null;
-      mv.ev = e1;
+      mv.ev = e1; mv.e0 = e0;
       renderBoard(); renderFeedback(); renderVarbar();
     }
   } finally { varBusy = false; }
+}
+// Explanation sentence for a classified move (cached per position + move).
+const whyCache = new Map();
+function moveWhy(fen, uci, c, e0, e1) {
+  if (!c || !e0 || !e1) return '';
+  const key = fen + ' ' + uci + ' ' + c.type;
+  if (!whyCache.has(key)) {
+    let s = '';
+    try { s = Explain.explain({ fen, uci, cls: c, e0, e1 }); } catch (e) { console.warn('explain', e); }
+    if (whyCache.size > 500) whyCache.clear();
+    whyCache.set(key, s);
+  }
+  return whyCache.get(key);
 }
 function renderVarFeedback(card) {
   const v = variation, k = v.idx - 1, m = v.moves[k], c = m.cls;
@@ -748,13 +791,13 @@ function renderVarFeedback(card) {
   if (!c) { card.innerHTML = `<div class="fb"><div><div class="t">${esc(label)}</div><div class="s">${c === null ? 'Keine Bewertung möglich' : 'Eigener Zug wird bewertet …'}</div></div></div>`; return; }
   const info = A.CLASSES[c.type];
   let sub = 'Eigener Zug (Variante)';
-  if (!c.isBest && c.bestUci) {
+  if (!c.isBest && c.bestUci && c.bestUci !== m.uci) {
     const bs = pvToSan(k === 0 ? positions[v.base] : v.fens[k - 1], [c.bestUci], 1)[0] || '';
-    sub = `Bester Zug war <b style="color:#fff">${esc(bs.replace(/^\d+\.(…)? ?/, ''))}</b>`;
-  } else if (c.type === 'brilliant') sub = 'Starkes Opfer!';
-  else if (c.type === 'great') sub = 'Der einzige gute Zug in dieser Stellung.';
+    sub = `Bester Zug war <b style="color:#fff">${esc(bs.replace(/^\d+(\.|…)+ ?/, ''))}</b>`;
+  }
   const sc = m.ev ? fmtScore(m.ev.lines[0], m.ev.terminal) : '';
-  card.innerHTML = `<div class="fb">${badge(c.type)}<div style="min-width:0"><div class="t" style="color:${info.color}">${esc(m.san)} ${info.phrase}</div><div class="s">${sub}</div></div>${sc ? `<span class="ev ${m.ev.lines[0].cpw < 0 ? 'neg' : ''}">${esc(sc)}</span>` : ''}</div>`;
+  const why = moveWhy(k === 0 ? positions[v.base] : v.fens[k - 1], m.uci, c, m.e0, m.ev);
+  card.innerHTML = `<div class="fb">${badge(c.type)}<div style="min-width:0"><div class="t" style="color:${info.color}">${esc(m.san)} ${info.phrase}</div><div class="s">${sub}</div>${why ? `<div class="fbwhy">${esc(why)}</div>` : ''}</div>${sc ? `<span class="ev ${m.ev.lines[0].cpw < 0 ? 'neg' : ''}">${esc(sc)}</span>` : ''}</div>`;
 }
 function renderFeedback() {
   const card = $('fbCard');
@@ -779,13 +822,13 @@ function renderFeedback() {
   let sub = '';
   let showBest = false;
   if (c.type === 'book') sub = esc(openingName(p) || 'Bekannte Eröffnungstheorie');
-  else if (!c.isBest && c.bestUci && c.type !== 'forced') {
+  else if (!c.isBest && c.bestUci && c.bestUci !== m.uci && c.type !== 'forced') {
     const bs = pvToSan(positions[p - 1], [c.bestUci], 1)[0] || '';
-    sub = `Bester Zug war <b style="color:#fff">${esc(bs.replace(/^\d+\.(…)? ?/, ''))}</b>`;
+    sub = `Bester Zug war <b style="color:#fff">${esc(bs.replace(/^\d+(\.|…)+ ?/, ''))}</b>`;
     showBest = true;
-  } else if (c.type === 'brilliant') sub = 'Starkes Opfer!';
-  else if (c.type === 'great') sub = 'Der einzige gute Zug in dieser Stellung.';
-  card.innerHTML = `<div class="fb">${badge(c.type)}<div style="min-width:0"><div class="t" style="color:${info.color}">${esc(m.san)} ${info.phrase}</div><div class="s">${sub}</div>${showBest ? '<button class="linkbtn" id="bShowBest">Besten Zug ansehen →</button>' : ''}</div>${sc ? `<span class="ev ${e1.lines[0].cpw < 0 ? 'neg' : ''}">${sc}</span>` : ''}</div>`;
+  }
+  const why = c.type === 'book' ? '' : moveWhy(positions[p - 1], m.uci, c, evals[p - 1], e1);
+  card.innerHTML = `<div class="fb">${badge(c.type)}<div style="min-width:0"><div class="t" style="color:${info.color}">${esc(m.san)} ${info.phrase}</div>${sub ? `<div class="s">${sub}</div>` : ''}${why ? `<div class="fbwhy">${esc(why)}</div>` : ''}${showBest ? '<button class="linkbtn" id="bShowBest">Besten Zug ansehen →</button>' : ''}</div>${sc ? `<span class="ev ${e1.lines[0].cpw < 0 ? 'neg' : ''}">${sc}</span>` : ''}</div>`;
   const b = $('bShowBest');
   if (b) b.onclick = () => {
     const ev0 = evals[p - 1];
@@ -1433,6 +1476,7 @@ function estRating(acc, nMoves) {
   if (acc == null || nMoves < 8) return null;
   return Math.max(100, Math.min(3000, Math.round((-364 + 0.2 * acc * acc) / 50) * 50));
 }
+let rvOpenCat = null;
 const REVIEW_ROWS = ['brilliant', 'great', 'best', 'excellent', 'good', 'book', 'inaccuracy', 'mistake', 'miss', 'blunder'];
 function renderReview() {
   const el = $('viewReview');
@@ -1446,9 +1490,10 @@ function renderReview() {
   const winW = res === '1-0', winB = res === '0-1';
   const me = LS.get('sa_me', null);
   const nameCell = (name, color, win) => `<div class="rvp"><div class="rvn${me && name && name.toLowerCase() === me ? ' me' : ''}">${esc(name || (color === 'w' ? 'Weiß' : 'Schwarz'))}</div><div class="rva ${color}${win ? ' win' : ''}" style="background-image:url('${PIECE_SVG[color === 'w' ? 'K' : 'k']}')"></div></div>`;
-  const row = t => {
+  const row = t => rowHtml(t) + (rvOpenCat === t ? `<div class="rvdef">${esc(A.CLASSES[t].desc || '')}</div>` : '');
+  const rowHtml = t => {
     const cw = wl.filter(c => c.type === t).length, cb = bl.filter(c => c.type === t).length, col = A.CLASSES[t].color;
-    return `<div class="rvrow"><span class="rvl">${A.CLASSES[t].label}</span><span class="rvc" style="color:${cw ? col : '#666'}">${cw}</span>${badge(t)}<span class="rvc" style="color:${cb ? col : '#666'}">${cb}</span></div>`;
+    return `<div class="rvrow rvcat${rvOpenCat === t ? ' open' : ''}" data-cat="${t}"><span class="rvl">${A.CLASSES[t].label}</span><span class="rvc" style="color:${cw ? col : '#666'}">${cw}</span>${badge(t)}<span class="rvc" style="color:${cb ? col : '#666'}">${cb}</span></div>`;
   };
   const opn = openingName();
   const resText = resultText(h, positions[positions.length - 1]);
@@ -1460,6 +1505,7 @@ function renderReview() {
       <svg class="graph rvgraph" id="rvGraph" viewBox="0 0 400 80" preserveAspectRatio="none">${graphSvg(400, 80, false)}</svg>
       <div class="rvsep"></div>
       ${REVIEW_ROWS.map(row).join('')}
+      <div class="rvhint">Tippe auf eine Bewertung für eine Erklärung.</div>
       <div class="rvsep"></div>
       <div class="rvrow"><span class="rvl">Spielstärke</span><span class="rvbox w">${rw == null ? '–' : rw}</span><span class="rvbox b">${rb == null ? '–' : rb}</span></div>
     </div>
@@ -1468,6 +1514,8 @@ function renderReview() {
 }
 $('viewReview').addEventListener('click', e => {
   if (e.target.closest('#rvStart')) { goto(0, false); showView('board'); return; }
+  const cat = e.target.closest('[data-cat]');
+  if (cat) { rvOpenCat = rvOpenCat === cat.dataset.cat ? null : cat.dataset.cat; renderReview(); return; }
   const k = e.target.closest('[data-ply]');
   if (k) { showView('board'); goto(+k.dataset.ply, false); return; }
   const g = e.target.closest('#rvGraph');
@@ -1574,15 +1622,15 @@ function renderTrend() {
 // Fill in stats for analyses saved before stats existed (one game per tick, in the background).
 function enrichStored() {
   const list = storedGames();
-  const g = list.find(x => x.ev && (!x.st || x.st.v !== 2)); // v2 = chess.com-calibrated model
+  const g = list.find(x => x.ev && (!x.st || x.st.v !== 3)); // v3 = calibrated model + filtered training tasks
   if (!g) return;
   try {
     const pg = C.parsePgn(g.pgn);
     const pos = [pg.startFen, ...pg.moves.map(m => m.fenAfter)];
     const ev = unslim(g.ev);
     if (ev.length === pos.length) g.st = gameStats(pg, pos, ev, classifyGame(pg, pos, ev));
-    else g.st = { v: 2, me: null, tr: [] };
-  } catch (e) { g.st = { v: 2, me: null, tr: [] }; }
+    else g.st = { v: 3, me: null, tr: [] };
+  } catch (e) { g.st = { v: 3, me: null, tr: [] }; }
   setGames(list);
   renderHomeExtras();
   setTimeout(enrichStored, 50);
@@ -1778,7 +1826,7 @@ function renderTrainHome() {
   const solved = tasks.filter(t => prog[t.id] && prog[t.id].ok).length;
   el.innerHTML = `<div class="cardhead"><h3>Aus Fehlern lernen</h3></div>` + (tasks.length
     ? `<div class="trrow"><div><b>${tasks.length} ${tasks.length === 1 ? 'Aufgabe' : 'Aufgaben'}</b> aus deinen Fehlern<div class="sub">${solved} gelöst · aus ${analysed} analysierten Partien</div></div><button class="primary" id="bTrain">${solved && solved < tasks.length ? 'Weiter' : 'Starten'}</button></div>`
-    : `<div class="hint" style="margin:0">Keine Fehler in deinen analysierten Partien gefunden – stark!</div>`);
+    : `<div class="hint" style="margin:0">Gerade keine Lernaufgaben. Hier landen nur Fehler mit echtem Lerneffekt: verpasste Taktiken, Matts und Drohungen, die du hättest abwehren müssen.</div>`);
 }
 $('trainHome').onclick = e => { if (e.target.closest('#bTrain')) startTraining(); };
 function startTraining() {
@@ -1809,8 +1857,8 @@ function renderTrainCard() {
   const opp = t.color === 'w' ? t.h.Black : t.h.White;
   const side = t.color === 'w' ? 'Weiß' : 'Schwarz';
   let status = '';
-  if (trainSt.done) status = `<div class="tstat ok">✓ ${esc(trainSt.msg)}</div>`;
-  else if (trainSt.msg) status = `<div class="tstat no">${esc(trainSt.msg)}</div>`;
+  if (trainSt.done) status = `<div class="tstat ok">✓ ${esc(trainSt.msg)}</div>${t.why ? `<div class="fbwhy">${esc(t.why)}</div>` : ''}`;
+  else if (trainSt.msg) status = `<div class="tstat no">${esc(trainSt.msg)}</div>${t.mo && trainSt.tries ? `<div class="fbwhy">Tipp: ${esc(t.mo)}</div>` : ''}`;
   el.innerHTML = `<div class="meta"><span>Aufgabe ${trainIdx + 1} von ${trainTasks.length}</span><span>${t.gt ? timeAgo(t.gt) : ''}</span></div>
     <div class="fb">${badge(t.type)}<div><div class="t">Finde den besten Zug für ${side}</div><div class="s">Gegen ${esc(opp || '?')} hast du hier <b style="color:#fff">${esc(t.played)}</b> gespielt – ${info.label.toLowerCase() === 'verpasst' ? 'eine verpasste Chance' : info.label === 'Patzer' ? 'ein Patzer' : 'ein Fehler'}.</div></div></div>
     ${status}

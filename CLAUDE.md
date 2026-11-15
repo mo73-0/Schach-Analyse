@@ -8,7 +8,8 @@ Hauptnutzer: iPhone, als Homescreen-App (PWA). Alle Texte in der App sind Deutsc
 - `src/` – **Quellcode, nur hier ändern**
   - `template.html` – HTML + CSS, Platzhalter `<!--HEAD-->`, `/*FLAGS*/`, `/*CHESS*/`, `/*PIECES*/`, `/*ANALYSIS*/`, `/*APP*/`
   - `chess.js` – eigene Schachlogik (Zuggenerator, SAN, FEN, PGN-Parser), Feld 0 = a8
-  - `analysis.js` – Zugbewertung (Brillant…Patzer), Genauigkeit, Gewinnwahrscheinlichkeit
+  - `analysis.js` – Zugbewertung (Brillant…Patzer), Genauigkeit, Gewinnwahrscheinlichkeit; `CLASSES[x].desc` = Erklärung der Kategorie
+  - `explain.js` – Erklärungen/Taktik-Motive aus Engine-Zeilen (`Explain.explain`, `lineMotif`: Matt, Gabel, ungedeckte Figur, Materialgewinn, Kombination)
   - `pieces.js` – Figuren (cburnett) als SVG-Data-URIs
   - `openings.js` – **generiert** von `gen_openings.js` aus lichess-org/chess-openings (CC0): Hashes aller Theoriestellungen + Eröffnungsnamen
   - `app.js` – UI, Engine-Steuerung (mehrere parallele Stockfish-Worker), Import von chess.com/Lichess, Töne, Einstellungen
@@ -72,7 +73,7 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
   = −364 + 0.2·Genauigkeit² (gerundet auf 50). Gefittet am 14.11.2026 auf 10 Partien des Nutzers (~700 Elo) gegen
   chess.com-Screenshots: Genauigkeit RMSE 14,6 → 5,6; Zugbewertungen ca. 25 % weniger Abweichung (Kreuzvalidierung bestätigt).
   Kalibrierdaten (PGNs, Screenshots) liegen bewusst **nicht** im Repo (fremde Spielernamen). Für eine Nachkalibrierung:
-  Export (s. u.) + neue Screenshots vom Nutzer anfordern. Gespeicherte Statistiken tragen `st.v = 2`.
+  Export (s. u.) + neue Screenshots vom Nutzer anfordern. Gespeicherte Statistiken tragen `st.v = 3` (ab v3 gefilterte Trainingsaufgaben).
 - Kalibrierungs-Export wurde nach der Kalibrierung auf Wunsch des Nutzers entfernt. Für eine Nachkalibrierung wieder einbauen
   (Git-Historie, Commit „Export von Kalibrierungsdaten“): JSON mit analysierten Partien inkl. Engine-Daten und den PGNs der
   zuletzt gespielten Partien, dazu chess.com-Review-Screenshots des Nutzers.
@@ -94,3 +95,11 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
 - Ton nach App-Wechsel (iOS): beim Verlassen (`visibilitychange` hidden / `pagehide`) wird `Sound.stale` gesetzt; bei der
   nächsten Berührung (`pointerdown`/`touchend`, Capture-Phase) wird ein neuer AudioContext erzeugt und mit einem stillen
   Sample entsperrt (die dekodierten Buffer werden weiterverwendet). Nur `resume()` reichte auf iOS nicht.
+- Erklärungen: Feedback-Karte (Partie- und Variantenzüge) zeigt unter „Bester Zug war …“ einen Satz aus `Explain.explain`
+  (was der Gegner jetzt kann: Matt/Gabel/ungedeckte Figur/Materialverlust; was übersehen wurde). Materialsätze nur, wenn die
+  Bewertung um ≥ 1,5 Bauern fällt. In der Übersicht erklärt ein Tipp auf eine Bewertungszeile die Kategorie (`desc`).
+- „Aus Fehlern lernen“ ist gefiltert (`trainTask`): nur verpasste Taktiken (Matt in ≤ 5, oder ≥ 2 Punkte Materialgewinn
+  in ≤ 6 Halbzügen, kein simples Zurückschlagen, Partie nicht schon klar gewonnen) oder abzuwehrende Drohungen (eigener
+  Zug erlaubte Matt/Figurenverlust und nur ein Zug hielt: Abstand bester/zweitbester ≥ 15 % Gewinnchance). Gleiche Taktik
+  (gleicher bester Zug + Motiv) nur einmal pro Partie. Aufgaben tragen `mo` (Motiv, als Tipp nach Fehlversuch) und `why`
+  (Erklärung nach Lösung). Auf 10 Kalibrierpartien: 47 → 7 Aufgaben.

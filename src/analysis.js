@@ -9,17 +9,17 @@ const Analysis = (() => {
   const moveAccuracy = loss => Math.max(0, Math.min(100, 103.1668 * Math.exp(-0.04354 * loss) - 3.1669));
 
   const CLASSES = {
-    book:       { label: 'Theoriezug',     sym: '<svg viewBox="0 0 24 24" width="64%" height="64%" aria-hidden="true"><path fill="#fff" d="M3 5.2C3 4.5 3.6 4 4.3 4c2.6 0 5 .6 6.7 1.9V20c-1.7-1.2-4.1-1.8-6.7-1.8-.7 0-1.3-.5-1.3-1.2zm18 0V17c0 .7-.6 1.2-1.3 1.2-2.6 0-5 .6-6.7 1.8V5.9C14.7 4.6 17.1 4 19.7 4c.7 0 1.3.5 1.3 1.2z"/></svg>', color: '#a88865', phrase: 'ist ein Theoriezug' },
-    brilliant:  { label: 'Brillant',       sym: '!!', color: '#1baca6', phrase: 'ist brillant' },
-    great:      { label: 'Großartig',      sym: '!',  color: '#5b8baf', phrase: 'ist ein großartiger Zug' },
-    best:       { label: 'Bester Zug',     sym: '★',  color: '#81b64c', phrase: 'ist der beste Zug' },
-    excellent:  { label: 'Exzellent',      sym: '✓', color: '#81b64c', phrase: 'ist exzellent' },
-    good:       { label: 'Gut',            sym: '✓',  color: '#95b776', phrase: 'ist gut' },
+    book:       { desc: 'Ein bekannter Eröffnungszug aus der Theorie – so spielen ihn auch starke Spieler.', label: 'Theoriezug',     sym: '<svg viewBox="0 0 24 24" width="64%" height="64%" aria-hidden="true"><path fill="#fff" d="M3 5.2C3 4.5 3.6 4 4.3 4c2.6 0 5 .6 6.7 1.9V20c-1.7-1.2-4.1-1.8-6.7-1.8-.7 0-1.3-.5-1.3-1.2zm18 0V17c0 .7-.6 1.2-1.3 1.2-2.6 0-5 .6-6.7 1.8V5.9C14.7 4.6 17.1 4 19.7 4c.7 0 1.3.5 1.3 1.2z"/></svg>', color: '#a88865', phrase: 'ist ein Theoriezug' },
+    brilliant:  { desc: 'Ein starkes Figurenopfer: Du gibst Material her, und die Stellung bleibt trotzdem gut. Selten und schwer zu finden.', label: 'Brillant',       sym: '!!', color: '#1baca6', phrase: 'ist brillant' },
+    great:      { desc: 'Der einzige wirklich gute Zug: Fast jeder andere Zug hätte die Stellung deutlich verschlechtert.', label: 'Großartig',      sym: '!',  color: '#5b8baf', phrase: 'ist ein großartiger Zug' },
+    best:       { desc: 'Der Zug, den die Engine in dieser Stellung als besten bewertet.', label: 'Bester Zug',     sym: '★',  color: '#81b64c', phrase: 'ist der beste Zug' },
+    excellent:  { desc: 'Fast so gut wie der beste Zug – der Unterschied ist kaum messbar.', label: 'Exzellent',      sym: '✓', color: '#81b64c', phrase: 'ist exzellent' },
+    good:       { desc: 'Ein solider Zug, der die Stellung im Wesentlichen hält, aber es gab etwas Besseres.', label: 'Gut',            sym: '✓',  color: '#95b776', phrase: 'ist gut' },
     forced:     { label: 'Erzwungen',      sym: '→',  color: '#96af8b', phrase: 'ist erzwungen' },
-    inaccuracy: { label: 'Ungenauigkeit',  sym: '?!', color: '#f7c631', phrase: 'ist eine Ungenauigkeit' },
-    mistake:    { label: 'Fehler',         sym: '?',  color: '#ffa459', phrase: 'ist ein Fehler' },
-    miss:       { label: 'Verpasst',       sym: '<svg viewBox="0 0 24 24" width="66%" height="66%" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/></svg>', color: '#ff7769', phrase: 'verpasst eine Chance' },
-    blunder:    { label: 'Patzer',         sym: '??', color: '#fa412d', phrase: 'ist ein Patzer' },
+    inaccuracy: { desc: 'Ein kleiner Fehler: Die Stellung wird etwas schlechter, aber nichts Entscheidendes geht verloren.', label: 'Ungenauigkeit',  sym: '?!', color: '#f7c631', phrase: 'ist eine Ungenauigkeit' },
+    mistake:    { desc: 'Ein deutlicher Fehler, der deine Gewinnchancen spürbar senkt – etwa ein Bauer weniger oder eine klar schlechtere Stellung.', label: 'Fehler',         sym: '?',  color: '#ffa459', phrase: 'ist ein Fehler' },
+    miss:       { desc: 'Der Gegner hatte gerade einen Fehler gemacht, und du hast die Gelegenheit, ihn zu bestrafen, nicht genutzt.', label: 'Verpasst',       sym: '<svg viewBox="0 0 24 24" width="66%" height="66%" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/></svg>', color: '#ff7769', phrase: 'verpasst eine Chance' },
+    blunder:    { desc: 'Ein schwerer Fehler, der die Partie kippen kann – meist wird eine Figur, die Dame oder ein Matt übersehen.', label: 'Patzer',         sym: '??', color: '#fa412d', phrase: 'ist ein Patzer' },
   };
   const ORDER = ['book', 'brilliant', 'great', 'best', 'excellent', 'good', 'inaccuracy', 'mistake', 'miss', 'blunder'];
 
