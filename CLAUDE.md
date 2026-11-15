@@ -73,7 +73,7 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
   = −364 + 0.2·Genauigkeit² (gerundet auf 50). Gefittet am 14.11.2026 auf 10 Partien des Nutzers (~700 Elo) gegen
   chess.com-Screenshots: Genauigkeit RMSE 14,6 → 5,6; Zugbewertungen ca. 25 % weniger Abweichung (Kreuzvalidierung bestätigt).
   Kalibrierdaten (PGNs, Screenshots) liegen bewusst **nicht** im Repo (fremde Spielernamen). Für eine Nachkalibrierung:
-  Export (s. u.) + neue Screenshots vom Nutzer anfordern. Gespeicherte Statistiken tragen `st.v = 3` (ab v3 gefilterte Trainingsaufgaben).
+  Export (s. u.) + neue Screenshots vom Nutzer anfordern. Gespeicherte Statistiken tragen `st.v = 4` (v3 gefilterte, v4 mehrzügige Trainingsaufgaben).
 - Kalibrierungs-Export wurde nach der Kalibrierung auf Wunsch des Nutzers entfernt. Für eine Nachkalibrierung wieder einbauen
   (Git-Historie, Commit „Export von Kalibrierungsdaten“): JSON mit analysierten Partien inkl. Engine-Daten und den PGNs der
   zuletzt gespielten Partien, dazu chess.com-Review-Screenshots des Nutzers.
@@ -103,3 +103,8 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
   Zug erlaubte Matt/Figurenverlust und nur ein Zug hielt: Abstand bester/zweitbester ≥ 15 % Gewinnchance). Gleiche Taktik
   (gleicher bester Zug + Motiv) nur einmal pro Partie. Aufgaben tragen `mo` (Motiv, als Tipp nach Fehlversuch) und `why`
   (Erklärung nach Lösung). Auf 10 Kalibrierpartien: 47 → 7 Aufgaben.
+- Trainingsaufgaben sind mehrzügig wie Taktikaufgaben (`solutionLine`, Feld `line` = Lösung, ungerade Länge): Matt in N →
+  alle N eigenen Züge (nur wenn die Engine-Zeile wirklich im Matt endet), Taktik → eigene Züge bis der Materialgewinn
+  (≥ 2, auch nach der Antwort) erreicht ist, max. 3 eigene Züge; „Drohung abwehren“ bleibt einzügig. Gegnerzüge spielt die
+  App automatisch (Engine-Zeile). Akzeptiert: genau der Lösungszug, im 1. Zug die gleichwertige Alternative (`alt`, beendet
+  die Aufgabe) oder jeder Zug, der sofort matt setzt. „Lösung zeigen“ zeigt den aktuell gesuchten Zug.

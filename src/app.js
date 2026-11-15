@@ -287,7 +287,7 @@ function gameStats(g, pos, ev, cl) {
     // the same tactic often stays on the board for several moves – keep it only once
     if (task && !tr.some(x => x.best === task.best && x.mo === task.mo)) tr.push(task);
   });
-  return { v: 3, aw: A.accuracy(wl), ab: A.accuracy(bl), me, tr };
+  return { v: 4, aw: A.accuracy(wl), ab: A.accuracy(bl), me, tr };
 }
 // Only mistakes with a real learning effect become training tasks:
 //  - a missed tactic: mate in <= 5, or a short line that wins >= 2 points of material (fork, loose piece, combination),
@@ -317,8 +317,28 @@ function trainTask(g, pos, ev, c, i, me) {
     }
   }
   if (!kind) return null;
+  const line = kind === 'Drohung abwehren' ? ls[0].pv.slice(0, 1) : solutionLine(pos[i], ls[0], mo);
   const alt = ls[1] && ls[1].pv && ls[1].pv[0] && wp(ls[0]) - wp(ls[1]) < 4 ? ls[1].pv[0] : null;
-  return { ply: i, fen: pos[i], best: c.bestUci, alt, played: g.moves[i].san, type: c.type, pv: ls[0].pv.slice(0, 3), mo: kind, why };
+  return { ply: i, fen: pos[i], best: c.bestUci, alt, played: g.moves[i].san, type: c.type, pv: ls[0].pv.slice(0, 3), line, mo: kind, why };
+}
+// Moves the player has to find, like a puzzle: the whole mate (mate in 3 = 3 own moves), or the moves until the
+// material is really won (e.g. fork + capture). Odd length: own move, reply, own move, …
+function solutionLine(fen, l, mo) {
+  const pv = l.pv || [];
+  try {
+    if (mo.kind === 'mate') {
+      const n = 2 * mo.n - 1;
+      if (pv.length < n) return pv.slice(0, 1);
+      let p = C.parseFen(fen);
+      for (const u of pv.slice(0, n)) { const m = C.legal(p).find(x => C.uci(x) === u); if (!m) return pv.slice(0, 1); p = C.make(p, m); }
+      return C.status(p) === 'mate' ? pv.slice(0, n) : pv.slice(0, 1);
+    }
+    for (let k = 1; k <= Math.min(5, pv.length); k += 2) {
+      const g1 = Explain.pvGain(fen, pv, k), g2 = pv.length > k ? Explain.pvGain(fen, pv, k + 1) : g1;
+      if (g1 >= 2 && g2 >= 2) return pv.slice(0, k);
+    }
+  } catch (e) { /* ignore */ }
+  return pv.slice(0, 1);
 }
 // German result sentence from Result/Termination headers (chess.com: "X won by checkmate", Lichess: "Normal", "Time forfeit").
 function resultText(h, lastFen) {
@@ -1622,15 +1642,15 @@ function renderTrend() {
 // Fill in stats for analyses saved before stats existed (one game per tick, in the background).
 function enrichStored() {
   const list = storedGames();
-  const g = list.find(x => x.ev && (!x.st || x.st.v !== 3)); // v3 = calibrated model + filtered training tasks
+  const g = list.find(x => x.ev && (!x.st || x.st.v !== 4)); // v4 = calibrated model + filtered multi-move training tasks
   if (!g) return;
   try {
     const pg = C.parsePgn(g.pgn);
     const pos = [pg.startFen, ...pg.moves.map(m => m.fenAfter)];
     const ev = unslim(g.ev);
     if (ev.length === pos.length) g.st = gameStats(pg, pos, ev, classifyGame(pg, pos, ev));
-    else g.st = { v: 3, me: null, tr: [] };
-  } catch (e) { g.st = { v: 3, me: null, tr: [] }; }
+    else g.st = { v: 4, me: null, tr: [] };
+  } catch (e) { g.st = { v: 4, me: null, tr: [] }; }
   setGames(list);
   renderHomeExtras();
   setTimeout(enrichStored, 50);
@@ -1843,7 +1863,7 @@ function openTask(i) {
   liveLines = null;
   flipped = t.color === 'b';
   trainArrow = null;
-  trainSt = { tries: 0, done: false, shown: false, msg: '' };
+  trainSt = { tries: 0, done: false, shown: false, msg: '', step: 0 };
   closeModals();
   showView('board');
   document.body.classList.add('training');
@@ -1856,11 +1876,12 @@ function renderTrainCard() {
   const info = A.CLASSES[t.type];
   const opp = t.color === 'w' ? t.h.Black : t.h.White;
   const side = t.color === 'w' ? 'Weiß' : 'Schwarz';
+  const nOwn = (taskLine(t).length + 1) >> 1;
   let status = '';
   if (trainSt.done) status = `<div class="tstat ok">✓ ${esc(trainSt.msg)}</div>${t.why ? `<div class="fbwhy">${esc(t.why)}</div>` : ''}`;
-  else if (trainSt.msg) status = `<div class="tstat no">${esc(trainSt.msg)}</div>${t.mo && trainSt.tries ? `<div class="fbwhy">Tipp: ${esc(t.mo)}</div>` : ''}`;
-  el.innerHTML = `<div class="meta"><span>Aufgabe ${trainIdx + 1} von ${trainTasks.length}</span><span>${t.gt ? timeAgo(t.gt) : ''}</span></div>
-    <div class="fb">${badge(t.type)}<div><div class="t">Finde den besten Zug für ${side}</div><div class="s">Gegen ${esc(opp || '?')} hast du hier <b style="color:#fff">${esc(t.played)}</b> gespielt – ${info.label.toLowerCase() === 'verpasst' ? 'eine verpasste Chance' : info.label === 'Patzer' ? 'ein Patzer' : 'ein Fehler'}.</div></div></div>
+  else if (trainSt.msg) status = `<div class="tstat ${trainSt.good ? 'ok' : 'no'}">${esc(trainSt.msg)}</div>${t.mo && trainSt.tries ? `<div class="fbwhy">Tipp: ${esc(t.mo)}</div>` : ''}`;
+  el.innerHTML = `<div class="meta"><span>Aufgabe ${trainIdx + 1} von ${trainTasks.length}${nOwn > 1 ? ` · Zug ${Math.min(Math.floor(trainSt.step / 2) + 1, nOwn)}/${nOwn}` : ''}</span><span>${t.gt ? timeAgo(t.gt) : ''}</span></div>
+    <div class="fb">${badge(t.type)}<div><div class="t">${nOwn > 1 ? `Finde die beste Fortsetzung für ${side} (${nOwn} Züge)` : `Finde den besten Zug für ${side}`}</div><div class="s">Gegen ${esc(opp || '?')} hast du hier <b style="color:#fff">${esc(t.played)}</b> gespielt – ${info.label.toLowerCase() === 'verpasst' ? 'eine verpasste Chance' : info.label === 'Patzer' ? 'ein Patzer' : 'ein Fehler'}.</div></div></div>
     ${status}
     <div class="row">${trainSt.done ? '' : '<button class="iconbtn" id="bTrHint">Lösung zeigen</button>'}<button class="${trainSt.done ? 'primary' : 'iconbtn'}" id="bTrNext">${trainIdx + 1 < trainTasks.length ? 'Nächste Aufgabe ›' : 'Fertig'}</button></div>`;
 }
@@ -1871,8 +1892,9 @@ $('trainCard').onclick = e => {
   }
   if (e.target.closest('#bTrHint')) {
     const t = trainTasks[trainIdx];
-    trainSt.shown = true; trainArrow = t.best;
-    trainSt.msg = 'Der blaue Pfeil zeigt den besten Zug – spiel ihn nach.';
+    if (trainSt.busy) return;
+    trainSt.shown = true; trainArrow = taskLine(t)[trainSt.step] || t.best;
+    trainSt.msg = 'Der blaue Pfeil zeigt den besten Zug – spiel ihn nach.'; trainSt.good = false;
     renderArrows(); renderTrainCard();
   }
 };
@@ -1888,23 +1910,43 @@ function trainerApply(u) {
   positions.push(C.toFen(np)); ply++;
   return mv;
 }
+const taskLine = t => (t.line && t.line.length ? t.line : [t.best]);
 function trainerMove(m) {
   const t = trainTasks[trainIdx];
   if (!t || trainSt.done || trainSt.busy) return;
-  const u = C.uci(m);
-  if (u === t.best || (t.alt && u === t.alt)) {
-    trainSt.done = true; trainArrow = null;
-    const p = C.parseFen(curFen());
-    trainSt.msg = `Richtig! ${C.san(p, m)} ${u === t.best ? 'ist der beste Zug' : 'ist genauso gut'}.`;
-    if (!trainSt.shown) { const pr = trainProg(); pr[t.id] = { ok: true, tries: trainSt.tries + 1 }; LS.set('sa_train', pr); }
+  const u = C.uci(m), line = taskLine(t), step = trainSt.step;
+  const p = C.parseFen(curFen()), san = C.san(p, m);
+  const mates = C.status(C.make(p, m)) === 'mate';
+  const isAlt = step === 0 && t.alt && u === t.alt && u !== line[0];
+  if (u === line[step] || isAlt || mates) {
+    trainArrow = null;
     trainerApply(u);
-    renderBoardAndInfo(); renderTrainCard();
-    const reply = u === t.best && t.pv[1];
-    if (reply) setTimeout(() => { if (game && game.trainer && trainTasks[trainIdx] === t) { trainerApply(reply); renderBoardAndInfo(); } }, 700);
+    trainSt.step = step + 1;
+    const finished = mates || isAlt || trainSt.step >= line.length;
+    if (finished) {
+      trainSt.done = true;
+      trainSt.msg = line.length > 1 && !isAlt ? `Richtig! ${mates ? 'Schachmatt.' : 'Aufgabe gelöst.'}` : `Richtig! ${san} ${isAlt ? 'ist genauso gut' : 'ist der beste Zug'}.`;
+      if (!trainSt.shown) { const pr = trainProg(); pr[t.id] = { ok: true, tries: trainSt.tries + 1 }; LS.set('sa_train', pr); }
+      renderBoardAndInfo(); renderTrainCard();
+      // single-move tasks: show the opponent's answer afterwards
+      const reply = line.length === 1 && !isAlt && !mates && t.pv[1];
+      if (reply) setTimeout(() => { if (game && game.trainer && trainTasks[trainIdx] === t) { trainerApply(reply); renderBoardAndInfo(); } }, 700);
+    } else {
+      // opponent answers with the engine move, then it's the player's turn again
+      trainSt.msg = `Richtig, ${san}! Wie geht es weiter?`; trainSt.good = true;
+      trainSt.busy = true;
+      renderBoardAndInfo(); renderTrainCard();
+      setTimeout(() => {
+        if (!game || !game.trainer || trainTasks[trainIdx] !== t) return;
+        trainerApply(line[trainSt.step]);
+        trainSt.step++;
+        trainSt.busy = false;
+        renderBoardAndInfo(); renderTrainCard();
+      }, 650);
+    }
   } else {
     trainSt.tries++;
-    const p = C.parseFen(curFen());
-    trainSt.msg = `${C.san(p, m)} ist nicht der beste Zug – versuch es nochmal.`;
+    trainSt.msg = `${san} ist nicht der beste Zug – versuch es nochmal.`; trainSt.good = false;
     // show the wrong move on the board, then slide the piece back
     trainSt.busy = true;
     const mv = trainerApply(u);
