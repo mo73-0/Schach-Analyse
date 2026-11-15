@@ -73,7 +73,7 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
   = −364 + 0.2·Genauigkeit² (gerundet auf 50). Gefittet am 14.11.2026 auf 10 Partien des Nutzers (~700 Elo) gegen
   chess.com-Screenshots: Genauigkeit RMSE 14,6 → 5,6; Zugbewertungen ca. 25 % weniger Abweichung (Kreuzvalidierung bestätigt).
   Kalibrierdaten (PGNs, Screenshots) liegen bewusst **nicht** im Repo (fremde Spielernamen). Für eine Nachkalibrierung:
-  Export (s. u.) + neue Screenshots vom Nutzer anfordern. Gespeicherte Statistiken tragen `st.v = 4` (v3 gefilterte, v4 mehrzügige Trainingsaufgaben).
+  Export (s. u.) + neue Screenshots vom Nutzer anfordern. Gespeicherte Statistiken tragen `st.v = 5` (v3 gefilterte, v4 mehrzügige, v5 Aufgaben mit Vorzug `pre` und `bestCp`).
 - Kalibrierungs-Export wurde nach der Kalibrierung auf Wunsch des Nutzers entfernt. Für eine Nachkalibrierung wieder einbauen
   (Git-Historie, Commit „Export von Kalibrierungsdaten“): JSON mit analysierten Partien inkl. Engine-Daten und den PGNs der
   zuletzt gespielten Partien, dazu chess.com-Review-Screenshots des Nutzers.
@@ -98,13 +98,14 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
 - Erklärungen: Feedback-Karte (Partie- und Variantenzüge) zeigt unter „Bester Zug war …“ einen Satz aus `Explain.explain`
   (was der Gegner jetzt kann: Matt/Gabel/ungedeckte Figur/Materialverlust; was übersehen wurde). Materialsätze nur, wenn die
   Bewertung um ≥ 1,5 Bauern fällt. In der Übersicht erklärt ein Tipp auf eine Bewertungszeile die Kategorie (`desc`).
-- „Aus Fehlern lernen“ ist gefiltert (`trainTask`): nur verpasste Taktiken (Matt in ≤ 5, oder ≥ 2 Punkte Materialgewinn
-  in ≤ 6 Halbzügen, kein simples Zurückschlagen, Partie nicht schon klar gewonnen) oder abzuwehrende Drohungen (eigener
-  Zug erlaubte Matt/Figurenverlust und nur ein Zug hielt: Abstand bester/zweitbester ≥ 15 % Gewinnchance). Gleiche Taktik
-  (gleicher bester Zug + Motiv) nur einmal pro Partie. Aufgaben tragen `mo` (Motiv, als Tipp nach Fehlversuch) und `why`
-  (Erklärung nach Lösung). Auf 10 Kalibrierpartien: 47 → 7 Aufgaben.
-- Trainingsaufgaben sind mehrzügig wie Taktikaufgaben (`solutionLine`, Feld `line` = Lösung, ungerade Länge): Matt in N →
-  alle N eigenen Züge (nur wenn die Engine-Zeile wirklich im Matt endet), Taktik → eigene Züge bis der Materialgewinn
-  (≥ 2, auch nach der Antwort) erreicht ist, max. 3 eigene Züge; „Drohung abwehren“ bleibt einzügig. Gegnerzüge spielt die
-  App automatisch (Engine-Zeile). Akzeptiert: genau der Lösungszug, im 1. Zug die gleichwertige Alternative (`alt`, beendet
-  die Aufgabe) oder jeder Zug, der sofort matt setzt. „Lösung zeigen“ zeigt den aktuell gesuchten Zug.
+- „Aus Fehlern lernen“ ist gefiltert (`trainTask`), Ziel: Mittelweg mit Fokus auf Lerneffekt (10 Kalibrierpartien: 47 → 13):
+  (1) verpasste Taktik: Matt in ≤ 5 oder ≥ 2 Punkte Materialgewinn in ≤ 6 Halbzügen, Verlust ≥ 0.08, Partie nicht schon
+  klar gewonnen (eb < 0.97); simples Zurückschlagen nur bei Verlust ≥ 0.20 („Zurückschlagen“).
+  (2) eigener Zug stellte eine Figur ein / erlaubte Matt (Gegnergewinn ≥ 3 und Bewertung fällt ≥ 1,5 Bauern, eb > 0.15):
+  „Figur nicht einstellen“ / „Drohung abwehren“ / „Matt verhindern“, einzügig.
+  Gleiche Taktik nur einmal pro Partie. Gelöste Aufgaben verschwinden aus der Liste (`buildTasks(true)` = alle, für „gelöst“).
+- Trainer: Aufgabe startet eine Stellung früher und spielt den Gegnerzug animiert (`t.pre`). Tipp (Motiv `mo`) nur per
+  Knopf „Tipp“ neben „Lösung zeigen“. Lösung (`line`, `solutionLine`): Matt in N → alle Züge (nur wenn die Zeile im Matt
+  endet); Material → nur der Schlüsselzug, wenn er das Material schon gewinnt, sonst max. 2 eigene Züge; Gegnerzüge spielt
+  die App. Abweichender 1. Zug wird von der Engine geprüft (`checkTrainMove`): richtig, wenn er die Bewertung von `bestCp`
+  hält (−60 cp; bei Matt-Aufgaben muss Matt bleiben). Jeder sofort mattsetzende Zug zählt. `why` nach der Lösung.

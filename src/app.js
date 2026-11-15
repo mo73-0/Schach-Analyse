@@ -287,7 +287,7 @@ function gameStats(g, pos, ev, cl) {
     // the same tactic often stays on the board for several moves – keep it only once
     if (task && !tr.some(x => x.best === task.best && x.mo === task.mo)) tr.push(task);
   });
-  return { v: 4, aw: A.accuracy(wl), ab: A.accuracy(bl), me, tr };
+  return { v: 5, aw: A.accuracy(wl), ab: A.accuracy(bl), me, tr };
 }
 // Only mistakes with a real learning effect become training tasks:
 //  - a missed tactic: mate in <= 5, or a short line that wins >= 2 points of material (fork, loose piece, combination),
@@ -298,28 +298,34 @@ function trainTask(g, pos, ev, c, i, me) {
   if (!ls[0] || !ls[0].pv || !ls[0].pv.length) return null;
   const sg = me === 'w' ? 1 : -1;
   const wp = l => A.winPct(sg * l.cpw);
+  const clampCp = x => Math.max(-100000, Math.min(100000, x));
   let mo = { kind: null, gain: 0 };
   try { mo = Explain.lineMotif(pos[i], ls[0]); } catch (e) { /* ignore */ }
   const prev = i > 0 ? g.moves[i - 1] : null;
   const recapture = prev && prev.captured && mo.m && mo.m.to === prev.to && !mo.m.promo && mo.kind !== 'mate';
-  let kind = null, why = '';
+  let kind = null, why = '', line = null;
+  // 1) missed tactic / mate (a missed recapture only counts when it was really costly)
   if (mo.kind === 'mate' && mo.n <= 5) kind = Explain.label(mo);
-  else if (mo.kind && mo.gain >= 2 && !recapture && c.loss >= 0.08 && c.eb < 0.97) kind = Explain.label(mo);
-  if (kind) why = Explain.bestText(mo);
-  else if (['mistake', 'blunder', 'miss'].includes(c.type) && c.eb > 0.10 && ls[1] && wp(ls[0]) - wp(ls[1]) >= 15) {
+  else if (mo.kind && mo.gain >= 2 && (!recapture || c.loss >= 0.20) && c.loss >= 0.08 && c.eb < 0.97) kind = recapture ? 'Zurückschlagen' : Explain.label(mo);
+  if (kind) { why = Explain.bestText(mo); line = solutionLine(pos[i], ls[0], mo); }
+  // 2) own move lost a piece / allowed mate: find a safe move (any move that keeps the evaluation counts, checked by the engine)
+  else if (['mistake', 'blunder', 'miss'].includes(c.type) && c.eb > 0.15) {
     const e1 = ev[i + 1], l1 = e1 && !e1.terminal && e1.lines[0];
     let opp = { kind: null, gain: 0 };
     try { if (l1) opp = Explain.lineMotif(pos[i + 1], l1); } catch (e) { /* ignore */ }
-    if (opp.kind === 'mate' || opp.gain >= 3) {
-      kind = 'Drohung abwehren';
-      const bs = mo.san || '';
-      why = opp.kind === 'mate' ? `Der Gegner drohte Matt (${opp.san}). Nur ${bs} hält die Stellung.` : `Nach deinem Zug gewinnt ${opp.san} Material. Nur ${bs} hält die Stellung.`;
+    const drop = Math.min(3000, sg * ls[0].cpw) - Math.max(-3000, sg * (l1 ? l1.cpw : ls[0].cpw));
+    if (opp.kind === 'mate' || (opp.gain >= 3 && drop >= 150)) {
+      const own = opp.kind === 'hanging' && opp.sq === g.moves[i].to;
+      kind = opp.kind === 'mate' ? 'Matt verhindern' : own ? 'Figur nicht einstellen' : 'Drohung abwehren';
+      why = opp.kind === 'mate' ? `Nach ${g.moves[i].san} hätte der Gegner Matt gesetzt (${opp.san}). ${mo.san || ''} verhindert das.`
+        : `Nach ${g.moves[i].san} gewinnt der Gegner mit ${opp.san} Material. Besser war zum Beispiel ${mo.san || ''}.`;
+      line = ls[0].pv.slice(0, 1);
     }
   }
   if (!kind) return null;
-  const line = kind === 'Drohung abwehren' ? ls[0].pv.slice(0, 1) : solutionLine(pos[i], ls[0], mo);
   const alt = ls[1] && ls[1].pv && ls[1].pv[0] && wp(ls[0]) - wp(ls[1]) < 4 ? ls[1].pv[0] : null;
-  return { ply: i, fen: pos[i], best: c.bestUci, alt, played: g.moves[i].san, type: c.type, pv: ls[0].pv.slice(0, 3), line, mo: kind, why };
+  const pre = prev ? { fen: pos[i - 1], uci: prev.uci } : null;
+  return { ply: i, fen: pos[i], best: c.bestUci, alt, played: g.moves[i].san, type: c.type, pv: ls[0].pv.slice(0, 3), line, mo: kind, why, pre, bestCp: clampCp(sg * ls[0].cpw) };
 }
 // Moves the player has to find, like a puzzle: the whole mate (mate in 3 = 3 own moves), or the moves until the
 // material is really won (e.g. fork + capture). Odd length: own move, reply, own move, …
@@ -333,7 +339,8 @@ function solutionLine(fen, l, mo) {
       for (const u of pv.slice(0, n)) { const m = C.legal(p).find(x => C.uci(x) === u); if (!m) return pv.slice(0, 1); p = C.make(p, m); }
       return C.status(p) === 'mate' ? pv.slice(0, n) : pv.slice(0, 1);
     }
-    for (let k = 1; k <= Math.min(5, pv.length); k += 2) {
+    // the key move alone when it already wins the material, otherwise key move + follow-up (max. 2 own moves)
+    for (let k = 1; k <= Math.min(3, pv.length); k += 2) {
       const g1 = Explain.pvGain(fen, pv, k), g2 = pv.length > k ? Explain.pvGain(fen, pv, k + 1) : g1;
       if (g1 >= 2 && g2 >= 2) return pv.slice(0, k);
     }
@@ -1642,15 +1649,15 @@ function renderTrend() {
 // Fill in stats for analyses saved before stats existed (one game per tick, in the background).
 function enrichStored() {
   const list = storedGames();
-  const g = list.find(x => x.ev && (!x.st || x.st.v !== 4)); // v4 = calibrated model + filtered multi-move training tasks
+  const g = list.find(x => x.ev && (!x.st || x.st.v !== 5)); // v5 = calibrated model + filtered multi-move training tasks with engine-checked answers
   if (!g) return;
   try {
     const pg = C.parsePgn(g.pgn);
     const pos = [pg.startFen, ...pg.moves.map(m => m.fenAfter)];
     const ev = unslim(g.ev);
     if (ev.length === pos.length) g.st = gameStats(pg, pos, ev, classifyGame(pg, pos, ev));
-    else g.st = { v: 4, me: null, tr: [] };
-  } catch (e) { g.st = { v: 4, me: null, tr: [] }; }
+    else g.st = { v: 5, me: null, tr: [] };
+  } catch (e) { g.st = { v: 5, me: null, tr: [] }; }
   setGames(list);
   renderHomeExtras();
   setTimeout(enrichStored, 50);
@@ -1825,7 +1832,7 @@ $('ratingSheet').addEventListener('click', e => { const b = e.target.closest('[d
 // ---------- training: learn from own mistakes ----------
 let trainTasks = [], trainIdx = 0, trainArrow = null, trainSt = null;
 const trainProg = () => LS.get('sa_train', {});
-function buildTasks() {
+function buildTasks(includeSolved = false) {
   const prog = trainProg();
   const all = [];
   for (const g of storedGames()) {
@@ -1833,8 +1840,8 @@ function buildTasks() {
     const h = g.h || {};
     for (const t of g.st.tr) all.push(Object.assign({ id: g.id + ':' + t.ply, color: g.st.me, h, gt: gameTime(g) }, t));
   }
-  const solved = t => prog[t.id] && prog[t.id].ok;
-  return all.filter(t => !solved(t)).concat(all.filter(solved));
+  if (includeSolved) return all;
+  return all.filter(t => !(prog[t.id] && prog[t.id].ok)); // solved tasks leave the list
 }
 function renderTrainHome() {
   const el = $('trainHome');
@@ -1843,10 +1850,10 @@ function renderTrainHome() {
   if (!analysed) { el.style.display = 'none'; return; }
   el.style.display = '';
   const prog = trainProg();
-  const solved = tasks.filter(t => prog[t.id] && prog[t.id].ok).length;
+  const solved = buildTasks(true).filter(t => prog[t.id] && prog[t.id].ok).length;
   el.innerHTML = `<div class="cardhead"><h3>Aus Fehlern lernen</h3></div>` + (tasks.length
-    ? `<div class="trrow"><div><b>${tasks.length} ${tasks.length === 1 ? 'Aufgabe' : 'Aufgaben'}</b> aus deinen Fehlern<div class="sub">${solved} gelöst · aus ${analysed} analysierten Partien</div></div><button class="primary" id="bTrain">${solved && solved < tasks.length ? 'Weiter' : 'Starten'}</button></div>`
-    : `<div class="hint" style="margin:0">Gerade keine Lernaufgaben. Hier landen nur Fehler mit echtem Lerneffekt: verpasste Taktiken, Matts und Drohungen, die du hättest abwehren müssen.</div>`);
+    ? `<div class="trrow"><div><b>${tasks.length} ${tasks.length === 1 ? 'offene Aufgabe' : 'offene Aufgaben'}</b> aus deinen Fehlern<div class="sub">${solved} gelöst · aus ${analysed} analysierten Partien</div></div><button class="primary" id="bTrain">Starten</button></div>`
+    : `<div class="hint" style="margin:0">Gerade keine offenen Aufgaben${solved ? ` – ${solved} gelöst` : ''}. Hier landen nur Fehler mit echtem Lerneffekt: verpasste Taktiken und Matts, eingestellte Figuren und übersehene Drohungen.</div>`);
 }
 $('trainHome').onclick = e => { if (e.target.closest('#bTrain')) startTraining(); };
 function startTraining() {
@@ -1858,17 +1865,25 @@ function openTask(i) {
   trainIdx = i;
   const t = trainTasks[i];
   Engine.cancel('live');
-  game = { headers: { White: t.h.White, Black: t.h.Black, WhiteElo: t.h.WhiteElo, BlackElo: t.h.BlackElo }, startFen: t.fen, moves: [], free: true, trainer: true };
-  positions = [t.fen]; evals = []; cls = []; variation = null; selected = null; ply = 0;
+  const start = t.pre ? t.pre.fen : t.fen;
+  game = { headers: { White: t.h.White, Black: t.h.Black, WhiteElo: t.h.WhiteElo, BlackElo: t.h.BlackElo }, startFen: start, moves: [], free: true, trainer: true };
+  positions = [start]; evals = []; cls = []; variation = null; selected = null; ply = 0;
   liveLines = null;
   flipped = t.color === 'b';
   trainArrow = null;
-  trainSt = { tries: 0, done: false, shown: false, msg: '', step: 0 };
+  trainSt = { tries: 0, done: false, shown: false, msg: '', step: 0, tip: false, busy: !!t.pre };
   closeModals();
   showView('board');
   document.body.classList.add('training');
   renderBoardAndInfo();
   renderTrainCard();
+  // first show the opponent's move that led to the task position
+  if (t.pre) setTimeout(() => {
+    if (!game || !game.trainer || trainTasks[trainIdx] !== t) return;
+    trainerApply(t.pre.uci);
+    trainSt.busy = false;
+    renderBoardAndInfo(); renderTrainCard();
+  }, 450);
 }
 function renderTrainCard() {
   const t = trainTasks[trainIdx], el = $('trainCard');
@@ -1879,17 +1894,19 @@ function renderTrainCard() {
   const nOwn = (taskLine(t).length + 1) >> 1;
   let status = '';
   if (trainSt.done) status = `<div class="tstat ok">✓ ${esc(trainSt.msg)}</div>${t.why ? `<div class="fbwhy">${esc(t.why)}</div>` : ''}`;
-  else if (trainSt.msg) status = `<div class="tstat ${trainSt.good ? 'ok' : 'no'}">${esc(trainSt.msg)}</div>${t.mo && trainSt.tries ? `<div class="fbwhy">Tipp: ${esc(t.mo)}</div>` : ''}`;
+  else if (trainSt.msg) status = `<div class="tstat ${trainSt.good ? 'ok' : 'no'}">${esc(trainSt.msg)}</div>`;
+  if (!trainSt.done && trainSt.tip && t.mo) status += `<div class="fbwhy">Tipp: ${esc(t.mo)}</div>`;
   el.innerHTML = `<div class="meta"><span>Aufgabe ${trainIdx + 1} von ${trainTasks.length}${nOwn > 1 ? ` · Zug ${Math.min(Math.floor(trainSt.step / 2) + 1, nOwn)}/${nOwn}` : ''}</span><span>${t.gt ? timeAgo(t.gt) : ''}</span></div>
     <div class="fb">${badge(t.type)}<div><div class="t">${nOwn > 1 ? `Finde die beste Fortsetzung für ${side} (${nOwn} Züge)` : `Finde den besten Zug für ${side}`}</div><div class="s">Gegen ${esc(opp || '?')} hast du hier <b style="color:#fff">${esc(t.played)}</b> gespielt – ${info.label.toLowerCase() === 'verpasst' ? 'eine verpasste Chance' : info.label === 'Patzer' ? 'ein Patzer' : 'ein Fehler'}.</div></div></div>
     ${status}
-    <div class="row">${trainSt.done ? '' : '<button class="iconbtn" id="bTrHint">Lösung zeigen</button>'}<button class="${trainSt.done ? 'primary' : 'iconbtn'}" id="bTrNext">${trainIdx + 1 < trainTasks.length ? 'Nächste Aufgabe ›' : 'Fertig'}</button></div>`;
+    <div class="row">${trainSt.done ? '' : `${t.mo && !trainSt.tip ? '<button class="iconbtn" id="bTrTip">Tipp</button>' : ''}<button class="iconbtn" id="bTrHint">Lösung zeigen</button>`}<button class="${trainSt.done ? 'primary' : 'iconbtn'}" id="bTrNext">${trainIdx + 1 < trainTasks.length ? 'Nächste Aufgabe ›' : 'Fertig'}</button></div>`;
 }
 $('trainCard').onclick = e => {
   if (e.target.closest('#bTrNext')) {
     if (trainIdx + 1 < trainTasks.length) openTask(trainIdx + 1); else showView('home');
     return;
   }
+  if (e.target.closest('#bTrTip')) { trainSt.tip = true; renderTrainCard(); return; }
   if (e.target.closest('#bTrHint')) {
     const t = trainTasks[trainIdx];
     if (trainSt.busy) return;
@@ -1944,12 +1961,43 @@ function trainerMove(m) {
         renderBoardAndInfo(); renderTrainCard();
       }, 650);
     }
+  } else if (step === 0 && t.bestCp != null && !trainSt.shown) {
+    // a different first move can be just as good: let the engine judge it
+    trainSt.busy = true; trainSt.msg = `${san} wird geprüft …`; trainSt.good = true;
+    const mv = trainerApply(u);
+    renderBoard(); renderTrainCard();
+    checkTrainMove(t, mv.fenAfter).then(ok => {
+      if (!game || !game.trainer || trainTasks[trainIdx] !== t) return;
+      trainSt.busy = false;
+      if (ok) {
+        trainSt.done = true; trainSt.step = line.length;
+        trainSt.msg = `Richtig! ${san} ist genauso gut.`;
+        const pr = trainProg(); pr[t.id] = { ok: true, tries: trainSt.tries + 1 }; LS.set('sa_train', pr);
+        renderBoardAndInfo(); renderTrainCard();
+      } else wrongTrainMove(t, san, mv, true);
+    });
   } else {
-    trainSt.tries++;
-    trainSt.msg = `${san} ist nicht der beste Zug – versuch es nochmal.`; trainSt.good = false;
+    wrongTrainMove(t, san, null, false, u);
+  }
+}
+// Engine check: does the player's move keep (almost) the evaluation of the best move?
+async function checkTrainMove(t, fenAfter) {
+  try {
+    await Engine.init();
+    const prof = STRENGTH[S.strength] || STRENGTH.std;
+    const r = await Engine.search({ fen: fenAfter, depth: prof.depth, movetime: Math.max(500, prof.ms), multipv: 1, kind: 'train' });
+    if (!r || !r.lines.length) return false;
+    const sg = t.color === 'w' ? 1 : -1, cp = Math.max(-100000, Math.min(100000, sg * r.lines[0].cpw));
+    if (t.bestCp > 90000) return cp > 90000;               // mate tasks: the move must keep a forced mate
+    return cp >= t.bestCp - 60 || (t.bestCp > 800 && cp > 800 && cp >= t.bestCp - 250);
+  } catch (e) { return false; }
+}
+function wrongTrainMove(t, san, shown, already, u) {
+  trainSt.tries++;
+  trainSt.msg = `${san} ist nicht der beste Zug – versuch es nochmal.`; trainSt.good = false;
     // show the wrong move on the board, then slide the piece back
     trainSt.busy = true;
-    const mv = trainerApply(u);
+    const mv = already ? shown : trainerApply(u);
     renderBoard(); renderTrainCard();
     setTimeout(() => {
       if (!game || !game.trainer || trainTasks[trainIdx] !== t || !mv) { if (trainSt) trainSt.busy = false; return; }
@@ -1958,7 +2006,6 @@ function trainerMove(m) {
       renderBoard();
       trainSt.busy = false;
     }, 750);
-  }
 }
 
 function renderHomeExtras() { renderTiles(); renderTrend(); renderTrainHome(); renderOpenings(); }
