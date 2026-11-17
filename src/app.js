@@ -1447,7 +1447,13 @@ function renderGameList() {
 }
 $('glist').onclick = e => {
   const del = e.target.closest('[data-del]');
-  if (del) { e.stopPropagation(); setGames(storedGames().filter(g => g.id !== del.dataset.del)); renderGameList(); return; }
+  if (del) {
+    e.stopPropagation();
+    setGames(storedGames().filter(g => g.id !== del.dataset.del));
+    renderGameList();
+    renderAccList(); renderHomeExtras(); // „analysiert“-Markierung, Training und Trends sofort aktualisieren
+    return;
+  }
   const g = e.target.closest('.g');
   if (!g) return;
   const item = storedGames().find(x => x.id === g.dataset.id);

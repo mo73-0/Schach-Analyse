@@ -319,7 +319,7 @@ body:not([data-view=home]) header h1 .t{display:none}
   </details>
 </div></div>
 
-<script>window.SA_VERSION="01e2c28d";window.SA_BUILT="17.11.2026 03:54";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
+<script>window.SA_VERSION="45d96ee0";window.SA_BUILT="17.11.2026 04:01";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
 <script>// Minimal chess core: board, legal moves, SAN, FEN, PGN. Square 0 = a8, 63 = h1.
 const Chess = (() => {
   const FILES = 'abcdefgh';
@@ -2348,7 +2348,13 @@ function renderGameList() {
 }
 $('glist').onclick = e => {
   const del = e.target.closest('[data-del]');
-  if (del) { e.stopPropagation(); setGames(storedGames().filter(g => g.id !== del.dataset.del)); renderGameList(); return; }
+  if (del) {
+    e.stopPropagation();
+    setGames(storedGames().filter(g => g.id !== del.dataset.del));
+    renderGameList();
+    renderAccList(); renderHomeExtras(); // „analysiert“-Markierung, Training und Trends sofort aktualisieren
+    return;
+  }
   const g = e.target.closest('.g');
   if (!g) return;
   const item = storedGames().find(x => x.id === g.dataset.id);
