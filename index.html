@@ -331,7 +331,7 @@ body:not([data-view=home]) header h1 .t{display:none}
   </details>
 </div></div>
 
-<script>window.SA_VERSION="a2bb5b3c";window.SA_BUILT="17.11.2026 11:38";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
+<script>window.SA_VERSION="1323772f";window.SA_BUILT="17.11.2026 11:45";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
 <script>// Minimal chess core: board, legal moves, SAN, FEN, PGN. Square 0 = a8, 63 = h1.
 const Chess = (() => {
   const FILES = 'abcdefgh';
@@ -1755,7 +1755,7 @@ function renderFeedback() {
   const m = game.moves[p - 1], c = cls[p - 1];
   const num = Math.floor((p - 1) / 2) + 1, white = C.parseFen(positions[p - 1]).turn === 'w';
   const label = `${num}${white ? '.' : '…'} ${m.san}`;
-  if (!c) { card.innerHTML = `<div class="fb"><div><div class="t">${esc(label)}</div><div class="s">${analyzing ? 'Wird analysiert …' : ''}</div></div></div>`; return; }
+  if (!c) { card.innerHTML = `<div class="fb"><div><div class="t">${esc(label)}</div><div class="s">${analyzing ? 'Wird analysiert …' : game.sandbox ? 'Spiel weiter: Ziehe für beide Seiten – jeder Zug bekommt eine Bewertung.' : ''}</div></div></div>`; return; }
   const info = A.CLASSES[c.type];
   const e1 = evals[p];
   const sc = e1 ? fmtScore(e1.lines[0], e1.terminal) : '';
@@ -1916,6 +1916,7 @@ function freeBoardRender() { renderEmpty(); }
 // ---------- interaction ----------
 function goto(p, fx = true) {
   if (!game) return;
+  if (game.trainer && trainSt && trainSt.busy) return; // no browsing while moves are being shown
   const target = Math.max(0, Math.min(positions.length - 1, p));
   if (fx && !variation) {
     if (target === ply + 1) { animMove(game.moves[ply]); Sound.forMove(game.moves[ply], positions[target]); }
@@ -2835,7 +2836,7 @@ function renderTrainCard() {
     el.innerHTML = `<div class="meta"><span>Aufgabe ${trainIdx + 1} von ${trainTasks.length}</span><span>${t.gt ? timeAgo(t.gt) : ''}</span></div>
       <div class="tsolved"><div class="tsico">${ok ? '✓' : '!'}</div><div><div class="tst">${ok ? 'Aufgabe gelöst!' : 'Mit Lösungshilfe geschafft'}</div><div class="tss">${esc(ok ? trainSt.msg.replace(/^Richtig!\s*/, '') : 'Diese Aufgabe bleibt in deiner Liste, damit du sie später nochmal allein lösen kannst.')}</div></div></div>
       ${t.why ? `<div class="fbwhy">${esc(t.why)}</div>` : ''}
-      <div class="row"><button class="primary" id="bTrNext">${trainIdx + 1 < trainTasks.length ? 'Nächste Aufgabe ›' : 'Fertig'}</button></div>`;
+      <div class="row"><button class="iconbtn" id="bTrPlay">Weiterspielen</button><button class="primary" id="bTrNext">${trainIdx + 1 < trainTasks.length ? 'Nächste Aufgabe ›' : 'Fertig'}</button></div>`;
     return;
   }
   el.innerHTML = `<div class="meta"><span>Aufgabe ${trainIdx + 1} von ${trainTasks.length}${nOwn > 1 ? ` · Zug ${Math.min(Math.floor(trainSt.step / 2) + 1, nOwn)}/${nOwn}` : ''}</span><span>${t.gt ? timeAgo(t.gt) : ''}</span></div>
@@ -2848,6 +2849,7 @@ $('trainCard').onclick = e => {
     if (trainIdx + 1 < trainTasks.length) openTask(trainIdx + 1); else showView('home');
     return;
   }
+  if (e.target.closest('#bTrPlay')) { continueFromTask(); return; }
   if (e.target.closest('#bTrTip')) { trainSt.tip = true; renderTrainCard(); return; }
   if (e.target.closest('#bTrHint')) {
     const t = trainTasks[trainIdx];
@@ -2910,15 +2912,15 @@ function trainerMove(m) {
     trainSt.busy = true; trainSt.msg = `${san} wird geprüft …`; trainSt.good = true;
     const mv = trainerApply(u);
     renderBoard(); renderTrainCard();
-    checkTrainMove(t, mv.fenAfter).then(ok => {
+    checkTrainMove(t, mv.fenAfter).then(res => {
       if (!game || !game.trainer || trainTasks[trainIdx] !== t) return;
       trainSt.busy = false;
-      if (ok) {
+      if (res.ok) {
         trainSt.done = true; trainSt.step = line.length;
         trainSt.msg = `Richtig! ${san} ist genauso gut.`;
         const pr = trainProg(); pr[t.id] = { ok: true, tries: trainSt.tries + 1 }; LS.set('sa_train', pr);
         renderBoardAndInfo(); renderTrainCard(); flashSolved();
-      } else wrongTrainMove(t, san, mv, true);
+      } else wrongTrainMove(t, san, mv, true, null, res.line);
     });
   } else {
     wrongTrainMove(t, san, null, false, u);
@@ -2938,26 +2940,75 @@ async function checkTrainMove(t, fenAfter) {
     await Engine.init();
     const prof = STRENGTH[S.strength] || STRENGTH.std;
     const r = await Engine.search({ fen: fenAfter, depth: prof.depth, movetime: Math.max(500, prof.ms), multipv: 1, kind: 'train' });
-    if (!r || !r.lines.length) return false;
-    const sg = t.color === 'w' ? 1 : -1, cp = Math.max(-100000, Math.min(100000, sg * r.lines[0].cpw));
-    if (t.bestCp > 90000) return cp > 90000;               // mate tasks: the move must keep a forced mate
-    return cp >= t.bestCp - 60 || (t.bestCp > 800 && cp > 800 && cp >= t.bestCp - 250);
-  } catch (e) { return false; }
+    if (!r || !r.lines.length) return { ok: false };
+    const line = r.lines[0];
+    const sg = t.color === 'w' ? 1 : -1, cp = Math.max(-100000, Math.min(100000, sg * line.cpw));
+    if (t.bestCp > 90000) return { ok: cp > 90000, line };               // mate tasks: the move must keep a forced mate
+    return { ok: cp >= t.bestCp - 60 || (t.bestCp > 800 && cp > 800 && cp >= t.bestCp - 250), line };
+  } catch (e) { return { ok: false }; }
 }
-function wrongTrainMove(t, san, shown, already, u) {
-  trainSt.tries++;
-  trainSt.msg = `${san} ist nicht der beste Zug – versuch es nochmal.`; trainSt.good = false;
-    // show the wrong move on the board, then slide the piece back
-    trainSt.busy = true;
-    const mv = already ? shown : trainerApply(u);
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const PIECE_ACC = { p: 'deinen Bauern', n: 'deinen Springer', b: 'deinen Läufer', r: 'deinen Turm', q: 'deine Dame', k: 'deinen König' };
+// Wrong move: show it, let the opponent answer with the engine's best reply, pause, then take both back.
+async function wrongTrainMove(t, san, shown, already, u, line) {
+  trainSt.tries++; trainSt.good = false; trainSt.busy = true;
+  const mv = already ? shown : trainerApply(u);
+  const alive = () => game && game.trainer && trainTasks[trainIdx] === t;
+  trainSt.msg = `${san} ist nicht der beste Zug …`;
+  renderBoard(); renderTrainCard();
+  if (!mv) { trainSt.busy = false; return; }
+  let reply = null, text = '';
+  try {
+    if (!line) {
+      await Engine.init();
+      const r = await Engine.search({ fen: mv.fenAfter, depth: 16, movetime: 400, multipv: 1, kind: 'train' });
+      line = r && r.lines[0];
+    }
+    const ru = line && line.pv && line.pv[0];
+    if (ru && alive()) {
+      const p = C.parseFen(mv.fenAfter), rm = C.legal(p).find(x => C.uci(x) === ru);
+      if (rm) {
+        const rs = C.san(p, rm), after = C.make(p, rm);
+        let mo = { kind: null };
+        try { mo = Explain.lineMotif(mv.fenAfter, line); } catch (e) { /* ignore */ }
+        if (C.status(after) === 'mate') text = `${rs} – Schachmatt!`;
+        else if (mo.kind === 'mate') text = `${rs} – danach setzt der Gegner in ${mo.n} Zügen matt.`;
+        else if (mo.kind === 'fork') text = `${rs} – eine Gabel!`;
+        else if (rm.captured) text = `${rs} schlägt ${PIECE_ACC[rm.captured.toLowerCase()]}.`;
+        else text = `Der Gegner antwortet ${rs}.`;
+        reply = ru;
+      }
+    }
+  } catch (e) { /* ignore */ }
+  if (!alive()) return;
+  await wait(reply ? 350 : 650);
+  if (!alive()) return;
+  let rmv = null;
+  if (reply) {
+    rmv = trainerApply(reply);
+    trainSt.msg = `${san}? ${text}`;
     renderBoard(); renderTrainCard();
-    setTimeout(() => {
-      if (!game || !game.trainer || trainTasks[trainIdx] !== t || !mv) { if (trainSt) trainSt.busy = false; return; }
-      game.moves.pop(); positions.pop(); ply = positions.length - 1;
-      animMove(mv, true);
-      renderBoard();
-      trainSt.busy = false;
-    }, 750);
+    await wait(1400);
+    if (!alive()) return;
+    game.moves.pop(); positions.pop(); ply = positions.length - 1;
+    animMove(rmv, true); renderBoard();
+    await wait(380);
+    if (!alive()) return;
+  }
+  game.moves.pop(); positions.pop(); ply = positions.length - 1;
+  animMove(mv, true); renderBoard();
+  trainSt.msg = `${reply ? `${san}? ${text} ` : `${san} ist nicht der beste Zug. `}Versuch es nochmal.`;
+  trainSt.busy = false;
+  renderTrainCard();
+}
+
+// After a solved task: keep playing from here like an analysis variation (every move gets a feedback symbol).
+function continueFromTask() {
+  const g0 = game;
+  game = { headers: g0.headers, startFen: g0.startFen, moves: g0.moves.slice(), free: false, trainer: false, sandbox: true };
+  evals = []; cls = []; variation = null; selected = null; trainArrow = null; ply = positions.length - 1;
+  document.body.classList.remove('training');
+  renderBoardAndInfo();
 }
 
 function renderHomeExtras() { renderTiles(); renderTrend(); renderTrainHome(); renderOpenings(); }
