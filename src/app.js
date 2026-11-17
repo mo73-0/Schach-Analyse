@@ -843,7 +843,7 @@ function renderFeedback() {
   const m = game.moves[p - 1], c = cls[p - 1];
   const num = Math.floor((p - 1) / 2) + 1, white = C.parseFen(positions[p - 1]).turn === 'w';
   const label = `${num}${white ? '.' : '…'} ${m.san}`;
-  if (!c) { card.innerHTML = `<div class="fb"><div><div class="t">${esc(label)}</div><div class="s">${analyzing ? 'Wird analysiert …' : game.sandbox ? 'Spiel weiter: Ziehe für beide Seiten – jeder Zug bekommt eine Bewertung.' : ''}</div></div></div>`; return; }
+  if (!c) { card.innerHTML = `<div class="fb"><div><div class="t">${esc(label)}</div><div class="s">${analyzing ? 'Wird analysiert …' : ''}</div></div></div>`; return; }
   const info = A.CLASSES[c.type];
   const e1 = evals[p];
   const sc = e1 ? fmtScore(e1.lines[0], e1.terminal) : '';
@@ -1924,7 +1924,6 @@ function renderTrainCard() {
     el.innerHTML = `<div class="meta"><span>Aufgabe ${trainIdx + 1} von ${trainTasks.length}</span><span>${t.gt ? timeAgo(t.gt) : ''}</span></div>
       <div class="tsolved"><div class="tsico">${ok ? '✓' : '!'}</div><div><div class="tst">${ok ? 'Aufgabe gelöst!' : 'Mit Lösungshilfe geschafft'}</div><div class="tss">${esc(ok ? trainSt.msg.replace(/^Richtig!\s*/, '') : 'Diese Aufgabe bleibt in deiner Liste, damit du sie später nochmal allein lösen kannst.')}</div></div></div>
       ${t.why ? `<div class="fbwhy">${esc(t.why)}</div>` : ''}
-      <div class="tplay">Du kannst die Stellung jetzt frei weiterspielen – jeder Zug wird bewertet.</div>
       <div class="row"><button class="primary" id="bTrNext">${trainIdx + 1 < trainTasks.length ? 'Nächste Aufgabe ›' : 'Fertig'}</button></div>`;
     return;
   }
