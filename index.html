@@ -331,7 +331,7 @@ body:not([data-view=home]) header h1 .t{display:none}
   </details>
 </div></div>
 
-<script>window.SA_VERSION="0a92db3c";window.SA_BUILT="17.11.2026 13:08";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
+<script>window.SA_VERSION="d1894f25";window.SA_BUILT="17.11.2026 13:12";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
 <script>// Minimal chess core: board, legal moves, SAN, FEN, PGN. Square 0 = a8, 63 = h1.
 const Chess = (() => {
   const FILES = 'abcdefgh';
@@ -2921,7 +2921,7 @@ function trainerMove(m) {
     }
   } else if (step === 0 && t.bestCp != null && !trainSt.shown) {
     // a different first move can be just as good: let the engine judge it
-    trainSt.busy = true; trainSt.msg = `${san} wird geprüft …`; trainSt.good = true;
+    trainSt.busy = true; trainSt.msg = `${san} wird geprüft …`; trainSt.good = true; trainSt.moveAt = Date.now();
     const mv = trainerApply(u);
     renderBoard(); renderTrainCard();
     checkTrainMove(t, mv.fenAfter).then(res => {
@@ -2935,6 +2935,7 @@ function trainerMove(m) {
       } else wrongTrainMove(t, san, mv, true, null, res.line);
     });
   } else {
+    trainSt.moveAt = Date.now();
     wrongTrainMove(t, san, null, false, u);
   }
 }
@@ -2951,7 +2952,7 @@ async function checkTrainMove(t, fenAfter) {
   try {
     await Engine.init();
     const prof = STRENGTH[S.strength] || STRENGTH.std;
-    const r = await Engine.search({ fen: fenAfter, depth: prof.depth, movetime: Math.max(500, prof.ms), multipv: 1, kind: 'train' });
+    const r = await Engine.search({ fen: fenAfter, depth: prof.depth, movetime: 350, multipv: 1, kind: 'train' });
     if (!r || !r.lines.length) return { ok: false };
     const line = r.lines[0];
     const sg = t.color === 'w' ? 1 : -1, cp = Math.max(-100000, Math.min(100000, sg * line.cpw));
@@ -2965,6 +2966,7 @@ const PIECE_ACC = { p: 'deinen Bauern', n: 'deinen Springer', b: 'deinen Läufer
 async function wrongTrainMove(t, san, shown, already, u, line) {
   trainSt.tries++; trainSt.good = false; trainSt.busy = true;
   const mv = already ? shown : trainerApply(u);
+  const t0 = trainSt.moveAt || Date.now();
   const alive = () => game && game.trainer && trainTasks[trainIdx] === t;
   trainSt.msg = `${san} ist nicht der beste Zug …`;
   renderBoard(); renderTrainCard();
@@ -2973,7 +2975,7 @@ async function wrongTrainMove(t, san, shown, already, u, line) {
   try {
     if (!line) {
       await Engine.init();
-      const r = await Engine.search({ fen: mv.fenAfter, depth: 16, movetime: 300, multipv: 1, kind: 'train' });
+      const r = await Engine.search({ fen: mv.fenAfter, depth: 16, movetime: 200, multipv: 1, kind: 'train' });
       line = r && r.lines[0];
     }
     const ru = line && line.pv && line.pv[0];
@@ -2993,7 +2995,7 @@ async function wrongTrainMove(t, san, shown, already, u, line) {
     }
   } catch (e) { /* ignore */ }
   if (!alive()) return;
-  await wait(reply ? 200 : 450);
+  await wait(Math.max(0, (reply ? 230 : 450) - (Date.now() - t0)));
   if (!alive()) return;
   let rmv = null;
   if (reply) {
