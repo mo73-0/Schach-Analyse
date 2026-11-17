@@ -126,3 +126,5 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
 - Nach gelöster Aufgabe geht es automatisch frei weiter (`continueFromTask`, kein Extra-Knopf): Aufgabe wird zur normalen
   Partie (`game.sandbox`), weitere Züge (beide Seiten) laufen als Variante mit Bewertungssymbolen, Engine-Zeilen und
   Bewertungsleiste. Die Aufgabenkarte (gelöst + „Nächste Aufgabe“) bleibt sichtbar über `body.traindone`.
+- Im Training ist die Bewertungsleiste nur unsichtbar (`opacity:0`), nicht ausgeblendet – so behält das Brett seine Breite
+  und springt nach dem Lösen nicht; die Leiste blendet sanft ein.
