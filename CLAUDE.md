@@ -117,3 +117,6 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
 - Trainer-Navigation: Steuerleiste (Anfang/◀/▶/Ende) ist auch im Training sichtbar, z. B. um den Gegnerzug nochmal
   anzusehen. Züge nur in der aktuellen Aufgabenstellung (`ply === positions.length - 1`); ein Tipp aufs Brett beim
   Zurückblättern springt dorthin zurück. `trainerApply` setzt `ply` immer ans Ende.
+- Gelöste Aufgabe deutlich markiert: Karte wird grün umrandet/hinterlegt mit großem ✓ „Aufgabe gelöst!“ (+ „Im ersten
+  Versuch!“ bzw. „im N. Versuch“), Brett blinkt kurz grün (`flashSolved`), nur noch Knopf „Nächste Aufgabe“. Mit
+  „Lösung zeigen“ geschafft → orange „Mit Lösungshilfe geschafft“ (Aufgabe bleibt offen).

@@ -208,6 +208,18 @@ body:not([data-view=home]) header h1 .t{display:none}
 #trainCard{display:none}
 .training #trainCard{display:block}
 .training #fbCard,.training #engCard,.training #sumCard,.training #graphCard,.training #movesCard,.training #varbar,.training #evalbar,.training #btnReview,.training #progressWrap{display:none!important}
+#trainCard{transition:background .3s,border-color .3s;border:2px solid transparent}
+#trainCard.solved{border-color:#81b64c;background:linear-gradient(180deg,rgba(129,182,76,.22),rgba(129,182,76,.06))}
+#trainCard.helped{border-color:#e6a23c;background:linear-gradient(180deg,rgba(230,162,60,.18),rgba(230,162,60,.05))}
+.tsolved{display:flex;align-items:center;gap:12px;margin:6px 0 4px}
+.tsico{flex:none;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-size:26px;font-weight:900;color:#fff;background:#81b64c;animation:tpop .45s cubic-bezier(.2,1.6,.4,1)}
+#trainCard.helped .tsico{background:#e6a23c}
+.tst{font-size:19px;font-weight:800;color:#fff}.tss{font-size:13px;color:#ddd;margin-top:2px}
+#trainCard.solved .tst{color:#a3d36b}#trainCard.helped .tst{color:#f0b75e}
+#trainCard .row .primary{flex:1}
+@keyframes tpop{0%{transform:scale(.3);opacity:0}100%{transform:scale(1);opacity:1}}
+.boardwrap.solvedflash{animation:bflash 1.1s ease-out}
+@keyframes bflash{0%{box-shadow:0 0 0 0 rgba(129,182,76,.9)}40%{box-shadow:0 0 0 6px rgba(129,182,76,.8)}100%{box-shadow:0 0 0 0 rgba(129,182,76,0)}}
 #trainCard .tstat{margin:10px 0 0;font-weight:700}#trainCard .tstat.ok{color:#81b64c}#trainCard .tstat.no{color:#e6a23c}
 .homehead{display:flex;align-items:center;justify-content:space-between;margin:6px 2px 4px}
 .homehead h2{font-size:20px;margin:0}
@@ -319,7 +331,7 @@ body:not([data-view=home]) header h1 .t{display:none}
   </details>
 </div></div>
 
-<script>window.SA_VERSION="45d96ee0";window.SA_BUILT="17.11.2026 04:01";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
+<script>window.SA_VERSION="a2bb5b3c";window.SA_BUILT="17.11.2026 11:38";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
 <script>// Minimal chess core: board, legal moves, SAN, FEN, PGN. Square 0 = a8, 63 = h1.
 const Chess = (() => {
   const FILES = 'abcdefgh';
@@ -2815,6 +2827,17 @@ function renderTrainCard() {
   if (trainSt.done) status = `<div class="tstat ok">✓ ${esc(trainSt.msg)}</div>${t.why ? `<div class="fbwhy">${esc(t.why)}</div>` : ''}`;
   else if (trainSt.msg) status = `<div class="tstat ${trainSt.good ? 'ok' : 'no'}">${esc(trainSt.msg)}</div>`;
   if (!trainSt.done && trainSt.tip && t.mo) status += `<div class="fbwhy">Tipp: ${esc(t.mo)}</div>`;
+  el.classList.toggle('solved', !!trainSt.done && !trainSt.shown);
+  el.classList.toggle('helped', !!trainSt.done && !!trainSt.shown);
+  if (trainSt.done) {
+    // clearly marked result: big banner instead of the task text
+    const ok = !trainSt.shown;
+    el.innerHTML = `<div class="meta"><span>Aufgabe ${trainIdx + 1} von ${trainTasks.length}</span><span>${t.gt ? timeAgo(t.gt) : ''}</span></div>
+      <div class="tsolved"><div class="tsico">${ok ? '✓' : '!'}</div><div><div class="tst">${ok ? 'Aufgabe gelöst!' : 'Mit Lösungshilfe geschafft'}</div><div class="tss">${esc(ok ? trainSt.msg.replace(/^Richtig!\s*/, '') : 'Diese Aufgabe bleibt in deiner Liste, damit du sie später nochmal allein lösen kannst.')}</div></div></div>
+      ${t.why ? `<div class="fbwhy">${esc(t.why)}</div>` : ''}
+      <div class="row"><button class="primary" id="bTrNext">${trainIdx + 1 < trainTasks.length ? 'Nächste Aufgabe ›' : 'Fertig'}</button></div>`;
+    return;
+  }
   el.innerHTML = `<div class="meta"><span>Aufgabe ${trainIdx + 1} von ${trainTasks.length}${nOwn > 1 ? ` · Zug ${Math.min(Math.floor(trainSt.step / 2) + 1, nOwn)}/${nOwn}` : ''}</span><span>${t.gt ? timeAgo(t.gt) : ''}</span></div>
     <div class="fb">${badge(t.type)}<div><div class="t">${nOwn > 1 ? `Finde die beste Fortsetzung für ${side} (${nOwn} Züge)` : `Finde den besten Zug für ${side}`}</div><div class="s">Gegen ${esc(opp || '?')} hast du hier <b style="color:#fff">${esc(t.played)}</b> gespielt – ${info.label.toLowerCase() === 'verpasst' ? 'eine verpasste Chance' : info.label === 'Patzer' ? 'ein Patzer' : 'ein Fehler'}.</div></div></div>
     ${status}
@@ -2863,9 +2886,9 @@ function trainerMove(m) {
     const finished = mates || isAlt || trainSt.step >= line.length;
     if (finished) {
       trainSt.done = true;
-      trainSt.msg = line.length > 1 && !isAlt ? `Richtig! ${mates ? 'Schachmatt.' : 'Aufgabe gelöst.'}` : `Richtig! ${san} ${isAlt ? 'ist genauso gut' : 'ist der beste Zug'}.`;
+      trainSt.msg = line.length > 1 && !isAlt ? `Richtig! ${mates ? 'Schachmatt.' : 'Alle Züge gefunden.'}` : `Richtig! ${san} ${isAlt ? 'ist genauso gut' : 'ist der beste Zug'}.`;
       if (!trainSt.shown) { const pr = trainProg(); pr[t.id] = { ok: true, tries: trainSt.tries + 1 }; LS.set('sa_train', pr); }
-      renderBoardAndInfo(); renderTrainCard();
+      renderBoardAndInfo(); renderTrainCard(); flashSolved();
       // single-move tasks: show the opponent's answer afterwards
       const reply = line.length === 1 && !isAlt && !mates && t.pv[1];
       if (reply) setTimeout(() => { if (game && game.trainer && trainTasks[trainIdx] === t) { trainerApply(reply); renderBoardAndInfo(); } }, 700);
@@ -2894,12 +2917,20 @@ function trainerMove(m) {
         trainSt.done = true; trainSt.step = line.length;
         trainSt.msg = `Richtig! ${san} ist genauso gut.`;
         const pr = trainProg(); pr[t.id] = { ok: true, tries: trainSt.tries + 1 }; LS.set('sa_train', pr);
-        renderBoardAndInfo(); renderTrainCard();
+        renderBoardAndInfo(); renderTrainCard(); flashSolved();
       } else wrongTrainMove(t, san, mv, true);
     });
   } else {
     wrongTrainMove(t, san, null, false, u);
   }
+}
+function flashSolved() {
+  if (trainSt.shown) return;
+  const bw = $('boardwrap'); bw.classList.remove('solvedflash'); void bw.offsetWidth; bw.classList.add('solvedflash');
+  const tries = trainSt.tries;
+  if (!/Versuch/.test(trainSt.msg)) trainSt.msg += tries ? ` (im ${tries + 1}. Versuch)` : ' Im ersten Versuch!';
+  renderTrainCard();
+  setTimeout(() => $('trainCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 150);
 }
 // Engine check: does the player's move keep (almost) the evaluation of the best move?
 async function checkTrainMove(t, fenAfter) {

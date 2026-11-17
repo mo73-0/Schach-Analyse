@@ -1914,6 +1914,17 @@ function renderTrainCard() {
   if (trainSt.done) status = `<div class="tstat ok">✓ ${esc(trainSt.msg)}</div>${t.why ? `<div class="fbwhy">${esc(t.why)}</div>` : ''}`;
   else if (trainSt.msg) status = `<div class="tstat ${trainSt.good ? 'ok' : 'no'}">${esc(trainSt.msg)}</div>`;
   if (!trainSt.done && trainSt.tip && t.mo) status += `<div class="fbwhy">Tipp: ${esc(t.mo)}</div>`;
+  el.classList.toggle('solved', !!trainSt.done && !trainSt.shown);
+  el.classList.toggle('helped', !!trainSt.done && !!trainSt.shown);
+  if (trainSt.done) {
+    // clearly marked result: big banner instead of the task text
+    const ok = !trainSt.shown;
+    el.innerHTML = `<div class="meta"><span>Aufgabe ${trainIdx + 1} von ${trainTasks.length}</span><span>${t.gt ? timeAgo(t.gt) : ''}</span></div>
+      <div class="tsolved"><div class="tsico">${ok ? '✓' : '!'}</div><div><div class="tst">${ok ? 'Aufgabe gelöst!' : 'Mit Lösungshilfe geschafft'}</div><div class="tss">${esc(ok ? trainSt.msg.replace(/^Richtig!\s*/, '') : 'Diese Aufgabe bleibt in deiner Liste, damit du sie später nochmal allein lösen kannst.')}</div></div></div>
+      ${t.why ? `<div class="fbwhy">${esc(t.why)}</div>` : ''}
+      <div class="row"><button class="primary" id="bTrNext">${trainIdx + 1 < trainTasks.length ? 'Nächste Aufgabe ›' : 'Fertig'}</button></div>`;
+    return;
+  }
   el.innerHTML = `<div class="meta"><span>Aufgabe ${trainIdx + 1} von ${trainTasks.length}${nOwn > 1 ? ` · Zug ${Math.min(Math.floor(trainSt.step / 2) + 1, nOwn)}/${nOwn}` : ''}</span><span>${t.gt ? timeAgo(t.gt) : ''}</span></div>
     <div class="fb">${badge(t.type)}<div><div class="t">${nOwn > 1 ? `Finde die beste Fortsetzung für ${side} (${nOwn} Züge)` : `Finde den besten Zug für ${side}`}</div><div class="s">Gegen ${esc(opp || '?')} hast du hier <b style="color:#fff">${esc(t.played)}</b> gespielt – ${info.label.toLowerCase() === 'verpasst' ? 'eine verpasste Chance' : info.label === 'Patzer' ? 'ein Patzer' : 'ein Fehler'}.</div></div></div>
     ${status}
@@ -1962,9 +1973,9 @@ function trainerMove(m) {
     const finished = mates || isAlt || trainSt.step >= line.length;
     if (finished) {
       trainSt.done = true;
-      trainSt.msg = line.length > 1 && !isAlt ? `Richtig! ${mates ? 'Schachmatt.' : 'Aufgabe gelöst.'}` : `Richtig! ${san} ${isAlt ? 'ist genauso gut' : 'ist der beste Zug'}.`;
+      trainSt.msg = line.length > 1 && !isAlt ? `Richtig! ${mates ? 'Schachmatt.' : 'Alle Züge gefunden.'}` : `Richtig! ${san} ${isAlt ? 'ist genauso gut' : 'ist der beste Zug'}.`;
       if (!trainSt.shown) { const pr = trainProg(); pr[t.id] = { ok: true, tries: trainSt.tries + 1 }; LS.set('sa_train', pr); }
-      renderBoardAndInfo(); renderTrainCard();
+      renderBoardAndInfo(); renderTrainCard(); flashSolved();
       // single-move tasks: show the opponent's answer afterwards
       const reply = line.length === 1 && !isAlt && !mates && t.pv[1];
       if (reply) setTimeout(() => { if (game && game.trainer && trainTasks[trainIdx] === t) { trainerApply(reply); renderBoardAndInfo(); } }, 700);
@@ -1993,12 +2004,20 @@ function trainerMove(m) {
         trainSt.done = true; trainSt.step = line.length;
         trainSt.msg = `Richtig! ${san} ist genauso gut.`;
         const pr = trainProg(); pr[t.id] = { ok: true, tries: trainSt.tries + 1 }; LS.set('sa_train', pr);
-        renderBoardAndInfo(); renderTrainCard();
+        renderBoardAndInfo(); renderTrainCard(); flashSolved();
       } else wrongTrainMove(t, san, mv, true);
     });
   } else {
     wrongTrainMove(t, san, null, false, u);
   }
+}
+function flashSolved() {
+  if (trainSt.shown) return;
+  const bw = $('boardwrap'); bw.classList.remove('solvedflash'); void bw.offsetWidth; bw.classList.add('solvedflash');
+  const tries = trainSt.tries;
+  if (!/Versuch/.test(trainSt.msg)) trainSt.msg += tries ? ` (im ${tries + 1}. Versuch)` : ' Im ersten Versuch!';
+  renderTrainCard();
+  setTimeout(() => $('trainCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 150);
 }
 // Engine check: does the player's move keep (almost) the evaluation of the best move?
 async function checkTrainMove(t, fenAfter) {

@@ -205,6 +205,18 @@ body:not([data-view=home]) header h1 .t{display:none}
 #trainCard{display:none}
 .training #trainCard{display:block}
 .training #fbCard,.training #engCard,.training #sumCard,.training #graphCard,.training #movesCard,.training #varbar,.training #evalbar,.training #btnReview,.training #progressWrap{display:none!important}
+#trainCard{transition:background .3s,border-color .3s;border:2px solid transparent}
+#trainCard.solved{border-color:#81b64c;background:linear-gradient(180deg,rgba(129,182,76,.22),rgba(129,182,76,.06))}
+#trainCard.helped{border-color:#e6a23c;background:linear-gradient(180deg,rgba(230,162,60,.18),rgba(230,162,60,.05))}
+.tsolved{display:flex;align-items:center;gap:12px;margin:6px 0 4px}
+.tsico{flex:none;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-size:26px;font-weight:900;color:#fff;background:#81b64c;animation:tpop .45s cubic-bezier(.2,1.6,.4,1)}
+#trainCard.helped .tsico{background:#e6a23c}
+.tst{font-size:19px;font-weight:800;color:#fff}.tss{font-size:13px;color:#ddd;margin-top:2px}
+#trainCard.solved .tst{color:#a3d36b}#trainCard.helped .tst{color:#f0b75e}
+#trainCard .row .primary{flex:1}
+@keyframes tpop{0%{transform:scale(.3);opacity:0}100%{transform:scale(1);opacity:1}}
+.boardwrap.solvedflash{animation:bflash 1.1s ease-out}
+@keyframes bflash{0%{box-shadow:0 0 0 0 rgba(129,182,76,.9)}40%{box-shadow:0 0 0 6px rgba(129,182,76,.8)}100%{box-shadow:0 0 0 0 rgba(129,182,76,0)}}
 #trainCard .tstat{margin:10px 0 0;font-weight:700}#trainCard .tstat.ok{color:#81b64c}#trainCard .tstat.no{color:#e6a23c}
 .homehead{display:flex;align-items:center;justify-content:space-between;margin:6px 2px 4px}
 .homehead h2{font-size:20px;margin:0}
