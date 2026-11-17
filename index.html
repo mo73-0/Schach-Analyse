@@ -207,7 +207,6 @@ body:not([data-view=home]) header h1 .t{display:none}
 .ins span{font-size:11px;color:var(--muted)}.ins b{font-size:16px}.ins small{color:var(--muted);font-weight:500;font-size:11px}
 #trainCard{display:none}
 .training #trainCard,.traindone #trainCard{display:block}
-#evalbar{transition:opacity .35s}.training #evalbar{opacity:0;pointer-events:none} /* keep its space so the board doesn't jump after solving */
 .training #fbCard,.training #engCard,.training #sumCard,.training #graphCard,.training #movesCard,.training #varbar,.training #btnReview,.training #progressWrap{display:none!important}
 #trainCard{transition:background .3s,border-color .3s;border:2px solid transparent}
 #trainCard.solved{border-color:#81b64c;background:linear-gradient(180deg,rgba(129,182,76,.22),rgba(129,182,76,.06))}
@@ -332,7 +331,7 @@ body:not([data-view=home]) header h1 .t{display:none}
   </details>
 </div></div>
 
-<script>window.SA_VERSION="7c416a0b";window.SA_BUILT="17.11.2026 13:03";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
+<script>window.SA_VERSION="0a92db3c";window.SA_BUILT="17.11.2026 13:08";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
 <script>// Minimal chess core: board, legal moves, SAN, FEN, PGN. Square 0 = a8, 63 = h1.
 const Chess = (() => {
   const FILES = 'abcdefgh';
@@ -1474,6 +1473,12 @@ function requestLive() {
 
 // best known lines for current view position
 function currentLines() {
+  // training: the evaluation of the task position is known (no live engine while solving)
+  if (game && game.trainer && trainTasks[trainIdx] && trainTasks[trainIdx].bestCp != null) {
+    const t = trainTasks[trainIdx], sg = t.color === 'w' ? 1 : -1;
+    const mn = /Matt in (\d+)/.exec(t.mo || '');
+    return { lines: [{ cpw: sg * t.bestCp, mate: t.bestCp > 90000 && mn ? sg * +mn[1] : undefined, pv: [] }] };
+  }
   const stored = inGamePos() && game && !game.free ? evals[gamePly()] : null;
   if (stored) return { lines: stored.lines, depth: stored.lines[0] && stored.lines[0].depth, terminal: stored.terminal };
   if (liveLines) return { lines: liveLines, depth: liveDepth, live: true };
@@ -2968,7 +2973,7 @@ async function wrongTrainMove(t, san, shown, already, u, line) {
   try {
     if (!line) {
       await Engine.init();
-      const r = await Engine.search({ fen: mv.fenAfter, depth: 16, movetime: 400, multipv: 1, kind: 'train' });
+      const r = await Engine.search({ fen: mv.fenAfter, depth: 16, movetime: 300, multipv: 1, kind: 'train' });
       line = r && r.lines[0];
     }
     const ru = line && line.pv && line.pv[0];
@@ -2988,18 +2993,18 @@ async function wrongTrainMove(t, san, shown, already, u, line) {
     }
   } catch (e) { /* ignore */ }
   if (!alive()) return;
-  await wait(reply ? 350 : 650);
+  await wait(reply ? 200 : 450);
   if (!alive()) return;
   let rmv = null;
   if (reply) {
     rmv = trainerApply(reply);
     trainSt.msg = `${san}? ${text}`;
     renderBoard(); renderTrainCard();
-    await wait(1400);
+    await wait(1000);
     if (!alive()) return;
     game.moves.pop(); positions.pop(); ply = positions.length - 1;
     animMove(rmv, true); renderBoard();
-    await wait(380);
+    await wait(250);
     if (!alive()) return;
   }
   game.moves.pop(); positions.pop(); ply = positions.length - 1;

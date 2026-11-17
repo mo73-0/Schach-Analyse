@@ -560,6 +560,12 @@ function requestLive() {
 
 // best known lines for current view position
 function currentLines() {
+  // training: the evaluation of the task position is known (no live engine while solving)
+  if (game && game.trainer && trainTasks[trainIdx] && trainTasks[trainIdx].bestCp != null) {
+    const t = trainTasks[trainIdx], sg = t.color === 'w' ? 1 : -1;
+    const mn = /Matt in (\d+)/.exec(t.mo || '');
+    return { lines: [{ cpw: sg * t.bestCp, mate: t.bestCp > 90000 && mn ? sg * +mn[1] : undefined, pv: [] }] };
+  }
   const stored = inGamePos() && game && !game.free ? evals[gamePly()] : null;
   if (stored) return { lines: stored.lines, depth: stored.lines[0] && stored.lines[0].depth, terminal: stored.terminal };
   if (liveLines) return { lines: liveLines, depth: liveDepth, live: true };
@@ -2054,7 +2060,7 @@ async function wrongTrainMove(t, san, shown, already, u, line) {
   try {
     if (!line) {
       await Engine.init();
-      const r = await Engine.search({ fen: mv.fenAfter, depth: 16, movetime: 400, multipv: 1, kind: 'train' });
+      const r = await Engine.search({ fen: mv.fenAfter, depth: 16, movetime: 300, multipv: 1, kind: 'train' });
       line = r && r.lines[0];
     }
     const ru = line && line.pv && line.pv[0];
@@ -2074,18 +2080,18 @@ async function wrongTrainMove(t, san, shown, already, u, line) {
     }
   } catch (e) { /* ignore */ }
   if (!alive()) return;
-  await wait(reply ? 350 : 650);
+  await wait(reply ? 200 : 450);
   if (!alive()) return;
   let rmv = null;
   if (reply) {
     rmv = trainerApply(reply);
     trainSt.msg = `${san}? ${text}`;
     renderBoard(); renderTrainCard();
-    await wait(1400);
+    await wait(1000);
     if (!alive()) return;
     game.moves.pop(); positions.pop(); ply = positions.length - 1;
     animMove(rmv, true); renderBoard();
-    await wait(380);
+    await wait(250);
     if (!alive()) return;
   }
   game.moves.pop(); positions.pop(); ply = positions.length - 1;

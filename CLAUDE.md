@@ -121,10 +121,10 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
   Versuch!“ bzw. „im N. Versuch“), Brett blinkt kurz grün (`flashSolved`), nur noch Knopf „Nächste Aufgabe“. Mit
   „Lösung zeigen“ geschafft → orange „Mit Lösungshilfe geschafft“ (Aufgabe bleibt offen).
 - Falscher Zug im Training (`wrongTrainMove`): Zug bleibt stehen, Engine-Antwort des Gegners (aus `checkTrainMove` bzw.
-  kurze Suche 400 ms) wird gespielt, Text erklärt sie („Na7? Rxa7 schlägt deinen Springer.“, Matt, Gabel), nach 1,4 s
-  werden Antwort und eigener Zug animiert zurückgenommen → neuer Versuch. Währenddessen kein Blättern (`goto` gesperrt).
+  kurze Suche 300 ms) wird gespielt, Text erklärt sie („Na7? Rxa7 schlägt deinen Springer.“, Matt, Gabel), nach 1,0 s
+  werden Antwort und eigener Zug animiert zurückgenommen (insgesamt ca. 1,8 s) → neuer Versuch. Währenddessen kein Blättern (`goto` gesperrt).
 - Nach gelöster Aufgabe geht es automatisch frei weiter (`continueFromTask`, kein Extra-Knopf): Aufgabe wird zur normalen
   Partie (`game.sandbox`), weitere Züge (beide Seiten) laufen als Variante mit Bewertungssymbolen, Engine-Zeilen und
   Bewertungsleiste. Die Aufgabenkarte (gelöst + „Nächste Aufgabe“) bleibt sichtbar über `body.traindone`.
-- Im Training ist die Bewertungsleiste nur unsichtbar (`opacity:0`), nicht ausgeblendet – so behält das Brett seine Breite
-  und springt nach dem Lösen nicht; die Leiste blendet sanft ein.
+- Bewertungsleiste ist im Training immer sichtbar: zeigt die bekannte Bewertung der Aufgabenstellung (`t.bestCp`,
+  bei Matt „M N“ aus `t.mo`) über `currentLines()` – keine Live-Engine während des Lösens, Brett springt nicht.
