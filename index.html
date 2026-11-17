@@ -343,15 +343,15 @@ body:not([data-view=home]) header h1 .t{display:none}
 <div class="modal" id="mSettings"><div class="sheet">
   <h2>Einstellungen <button class="iconbtn" data-close>✕</button></h2>
   <div id="setList"></div>
-  <details class="adv"><summary>Erweitert</summary>
+  <div class="adv"><h4 class="seth">Daten</h4>
     <div class="hint">Sichert Einstellungen, gespeicherte Partien mit Analyse, Benutzernamen und Töne in einer Datei. Beim Wiederherstellen werden die aktuellen Daten durch die der Sicherung ersetzt.</div>
     <div class="row"><button class="iconbtn" id="bBackup">Daten sichern</button><label class="iconbtn">Wiederherstellen<input type="file" id="restoreIn" accept=".json,application/json" hidden></label></div>
     <div class="hint" id="advMsg"></div>
     <div class="hint" id="verInfo" style="color:#777"></div>
-  </details>
+  </div>
 </div></div>
 
-<script>window.SA_VERSION="5990c3e7";window.SA_BUILT="17.11.2026 13:37";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
+<script>window.SA_VERSION="90d93a3d";window.SA_BUILT="17.11.2026 14:40";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
 <script>// Minimal chess core: board, legal moves, SAN, FEN, PGN. Square 0 = a8, 63 = h1.
 const Chess = (() => {
   const FILES = 'abcdefgh';

@@ -53,7 +53,7 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
   sie liegen nur in `localStorage` (`sa_snd_move`, `sa_snd_capture`). **Diese Töne sind nicht frei lizenziert
   und dürfen nie ins (öffentliche) Repository.** Generell: jede fremde Datei vor dem Commit auf ihre Lizenz prüfen.
 - Daten (Einstellungen, letzte 25 Partien mit Analyse, Töne) liegen in `localStorage` (Schlüssel `sa_*`).
-  Sicherung/Wiederherstellung als JSON-Datei unter Einstellungen → „Erweitert“ (bewusst versteckt).
+  Sicherung/Wiederherstellung als JSON-Datei unter Einstellungen → ganz unten „Daten“ (nicht eingeklappt, nur bewusst weit unten).
 - Import: Liste der letzten Partien (chess.com-Monatsarchive rückwärts, Lichess mit `until`), „Ältere Partien laden“,
   bereits analysierte Partien markiert (Abgleich über PGN-Header).
 - Startbildschirm (`#viewHome`): beim Öffnen der App kein Brett, sondern „Zuletzt gespielt“ mit Plattform (chess.com/Lichess),
