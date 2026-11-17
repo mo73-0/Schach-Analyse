@@ -69,11 +69,13 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
   wertungsabhängiger Steilheit k(R) = 0.003·(R+1300)/2000 (R aus WhiteElo/BlackElo, sonst 1000); Grenzen Exzellent/Gut/
   Ungenauigkeit/Fehler = 0.02/0.05/0.08/0.30 verlorene erwartete Punkte; Bester Zug = Top-Zug der Engine mit Verlust ≤ 0.02;
   Verpasst = Gegner verlor zuvor ≥ 0.10 und dieser Zug gibt ≥ 0.05 zurück; Theorie läuft bis Halbzug 10 weiter, solange
-  Verlust ≤ 0.03; Zug-Genauigkeit 100 − 16·(100·Verlust)^0.7, Partie-Genauigkeit = Mittelwert; Spielstärke
+  Verlust ≤ 0.03; Zug-Genauigkeit max(−100, 100 − 16·(100·Verlust)^0.7), Theoriezüge = 100 (seit 17.11.2026), Partie-Genauigkeit = Mittelwert; Spielstärke
   = −364 + 0.2·Genauigkeit² (gerundet auf 50). Gefittet am 14.11.2026 auf 10 Partien des Nutzers (~700 Elo) gegen
   chess.com-Screenshots: Genauigkeit RMSE 14,6 → 5,6; Zugbewertungen ca. 25 % weniger Abweichung (Kreuzvalidierung bestätigt).
   Kalibrierdaten (PGNs, Screenshots) liegen bewusst **nicht** im Repo (fremde Spielernamen). Für eine Nachkalibrierung:
-  Export (s. u.) + neue Screenshots vom Nutzer anfordern. Gespeicherte Statistiken tragen `st.v = 5` (v3 gefilterte, v4 mehrzügige, v5 Aufgaben mit Vorzug `pre` und `bestCp`).
+  Export (s. u.) + neue Screenshots vom Nutzer anfordern. Gespeicherte Statistiken tragen `st.v = 6` (v3 gefilterte, v4 mehrzügige, v5 Aufgaben mit Vorzug `pre` und `bestCp`, v6 Theoriezüge = 100).
+  Nachkalibrierung 17.11.2026 mit 3 Lichess-Partien (PGN bei chess.com eingefügt): Genauigkeit RMSE chess.com-Partien
+  5,6 → 5,1, Lichess-Partien 11,1 → 8,4. Arbeitsdaten/Notizen außerhalb des Repos (`/home/claude/calib`, `li/NOTES.md`).
 - Kalibrierungs-Export ist dauerhaft drin (Wunsch des Nutzers, 17.11.2026): „Gespeicherte Analysen“ → unten
   „Kalibrierungsdaten exportieren“ (`#bCalib`) → `zugzwang-kalibrierung-DATUM.json` mit analysierten Partien inkl.
   Engine-Daten (`ev`, `st`, Analyse-Stärke) und den PGNs der zuletzt gespielten Partien. Der Nutzer schickt immer mal

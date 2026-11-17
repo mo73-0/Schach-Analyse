@@ -287,7 +287,7 @@ function gameStats(g, pos, ev, cl) {
     // the same tactic often stays on the board for several moves – keep it only once
     if (task && !tr.some(x => x.best === task.best && x.mo === task.mo)) tr.push(task);
   });
-  return { v: 5, aw: A.accuracy(wl), ab: A.accuracy(bl), me, tr };
+  return { v: 6, aw: A.accuracy(wl), ab: A.accuracy(bl), me, tr };
 }
 // Only mistakes with a real learning effect become training tasks:
 //  - a missed tactic: mate in <= 5, or a short line that wins >= 2 points of material (fork, loose piece, combination),
@@ -1661,15 +1661,15 @@ function renderTrend() {
 // Fill in stats for analyses saved before stats existed (one game per tick, in the background).
 function enrichStored() {
   const list = storedGames();
-  const g = list.find(x => x.ev && (!x.st || x.st.v !== 5)); // v5 = calibrated model + filtered multi-move training tasks with engine-checked answers
+  const g = list.find(x => x.ev && (!x.st || x.st.v !== 6)); // v6 = book moves count 100 in accuracy; v5 = calibrated model + filtered multi-move training tasks with engine-checked answers
   if (!g) return;
   try {
     const pg = C.parsePgn(g.pgn);
     const pos = [pg.startFen, ...pg.moves.map(m => m.fenAfter)];
     const ev = unslim(g.ev);
     if (ev.length === pos.length) g.st = gameStats(pg, pos, ev, classifyGame(pg, pos, ev));
-    else g.st = { v: 5, me: null, tr: [] };
-  } catch (e) { g.st = { v: 5, me: null, tr: [] }; }
+    else g.st = { v: 6, me: null, tr: [] };
+  } catch (e) { g.st = { v: 6, me: null, tr: [] }; }
   setGames(list);
   renderHomeExtras();
   setTimeout(enrichStored, 50);

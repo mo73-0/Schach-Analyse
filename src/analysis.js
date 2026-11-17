@@ -50,7 +50,7 @@ const Analysis = (() => {
     brilTol: 0.05, brilMaxWin: 0.95, brilMinWin: 0.45,
     greatGap: 0.08, greatMinWin: 0.30,
     missOpp: 0.10, missMin: 0.05,            // opponent just lost >= 0.10 and this move gives >= 0.05 back
-    accA: 16, accP: 0.7,                     // move accuracy = 100 - accA * (100*loss)^accP, game accuracy = mean (clamped)
+    accA: 16, accP: 0.7, accMin: -100,       // move accuracy = max(accMin, 100 - accA * (100*loss)^accP), book = 100, game accuracy = mean (clamped)
     bookExt: 10, bookLoss: 0.03,             // theory continues up to ply 10 while moves stay near-perfect
     defaultElo: 1000,
   };
@@ -64,7 +64,7 @@ const Analysis = (() => {
     const x = Math.max(-2000, Math.min(2000, cp));
     return 1 / (1 + Math.exp(-k * x));
   };
-  const moveAcc = loss => 100 - EP.accA * Math.pow(loss * 100, EP.accP);
+  const moveAcc = loss => Math.max(EP.accMin, 100 - EP.accA * Math.pow(loss * 100, EP.accP));
 
   // evals[i] = { lines:[{cpw, pv:[uci...]}], terminal } (white POV). Returns classification for move i.
   function classify(game, positions, evals, i, prevCls) {
@@ -98,7 +98,8 @@ const Analysis = (() => {
   }
 
   function accuracy(list) {
-    const a = list.filter(x => x).map(x => x.acc);
+    // theory moves count as perfect (like chess.com; calibrated 17.11.2026: accuracy RMSE 5.6 → 5.2 / Lichess games 11.1 → 9.1)
+    const a = list.filter(x => x).map(x => (x.type === 'book' ? 100 : x.acc));
     if (!a.length) return null;
     return Math.max(0, Math.min(100, a.reduce((s, x) => s + x, 0) / a.length));
   }
