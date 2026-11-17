@@ -74,9 +74,12 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
   chess.com-Screenshots: Genauigkeit RMSE 14,6 → 5,6; Zugbewertungen ca. 25 % weniger Abweichung (Kreuzvalidierung bestätigt).
   Kalibrierdaten (PGNs, Screenshots) liegen bewusst **nicht** im Repo (fremde Spielernamen). Für eine Nachkalibrierung:
   Export (s. u.) + neue Screenshots vom Nutzer anfordern. Gespeicherte Statistiken tragen `st.v = 5` (v3 gefilterte, v4 mehrzügige, v5 Aufgaben mit Vorzug `pre` und `bestCp`).
-- Kalibrierungs-Export wurde nach der Kalibrierung auf Wunsch des Nutzers entfernt. Für eine Nachkalibrierung wieder einbauen
-  (Git-Historie, Commit „Export von Kalibrierungsdaten“): JSON mit analysierten Partien inkl. Engine-Daten und den PGNs der
-  zuletzt gespielten Partien, dazu chess.com-Review-Screenshots des Nutzers.
+- Kalibrierungs-Export ist dauerhaft drin (Wunsch des Nutzers, 17.11.2026): „Gespeicherte Analysen“ → unten
+  „Kalibrierungsdaten exportieren“ (`#bCalib`) → `zugzwang-kalibrierung-DATUM.json` mit analysierten Partien inkl.
+  Engine-Daten (`ev`, `st`, Analyse-Stärke) und den PGNs der zuletzt gespielten Partien. Der Nutzer schickt immer mal
+  2–3 Partien + chess.com-Review-Screenshots (Genauigkeit, Anzahl je Bewertung). Daten sammeln (außerhalb des Repos),
+  bei genügend neuen Partien `EP` in `analysis.js` neu fitten (Kreuzvalidierung, nur übernehmen wenn besser), danach
+  `st.v` erhöhen, damit gespeicherte Statistiken neu berechnet werden.
 - Übersicht (`#viewReview`) nach jeder Analyse bzw. beim Öffnen einer analysierten Partie: Spieler, Genauigkeit,
   Bewertungsverlauf, Anzahl je Bewertung (alle Kategorien immer sichtbar, Reihenfolge wie chess.com: Brillant … Patzer), geschätzte Spielstärke (eigene Heuristik; alle Zahlen, Symbole und die Zugliste im selben Raster: Spalte Weiß | Symbol | Schwarz)
   aus der Genauigkeit, `estRating`), Zugliste; Knopf „Partieanalyse starten“ ist unten am Bildschirm fixiert (`.rvfoot`, position:fixed – sticky funktioniert wegen overflow-x auf body nicht). Im Brett führt „Übersicht“ zurück.
