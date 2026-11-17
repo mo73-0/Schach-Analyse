@@ -19,6 +19,7 @@ Hauptnutzer: iPhone, als Homescreen-App (PWA). Alle Texte in der App sind Deutsc
 - `sw.js` – Service Worker (Offline): `index.html` network-first, `version.json` nie gecacht, alles andere cache-first
 - `version.json` – **generiert**; die App vergleicht sie beim Start/Zurückkehren mit ihrer eigenen Version und zeigt „Neue Version verfügbar“
 - `stockfish/` – Stockfish 19 Lite single-threaded (stockfish.js von nmrugg, GPLv3)
+- `pieces/<set>/` – weitere Figurensets (SVG + Lizenzdatei je Ordner, siehe `THIRD_PARTY.md`); werden bei Auswahl geladen und vom Service Worker zur Laufzeit gecacht
 - `manifest.webmanifest`, Icons – PWA
 
 ## Lizenzen – höchste Priorität
@@ -128,3 +129,11 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
   Bewertungsleiste. Die Aufgabenkarte (gelöst + „Nächste Aufgabe“) bleibt sichtbar über `body.traindone`.
 - Bewertungsleiste ist im Training immer sichtbar: zeigt die bekannte Bewertung der Aufgabenstellung (`t.bestCp`,
   bei Matt „M N“ aus `t.mo`) über `currentLines()` – keine Live-Engine während des Lösens, Brett springt nicht.
+- Aussehen (Einstellungen → „Aussehen“): 12 eigene Brettfarben (`THEMES`) + „Eigene Farben“ (`S.boardLight/boardDark`)
+  + „Eigenes Bild“ (`sa_board_img`, quadratisch 720 px JPEG, Felder dann transparent); Muster (`S.pattern`: Holzmaserung,
+  Leinen, Glanz – reines CSS). Figuren (`S.pieces`, `pieceUrl()`): cburnett (eingebaut) + chessnut, fantasy, spatial, celtic,
+  firi, kiwen-suwi, shapes (`pieces/`) + „Eigene“ (`sa_pieces_custom`, 12 Dateien, Name → Figur über `pieceKeyFromName`,
+  PNG auf 160 px verkleinert, SVG ≤ 150 KB). Neue Sets nur nach Lizenzprüfung an der Originalquelle (siehe THIRD_PARTY.md:
+  geprüft 17.11.2026, nicht-freie bzw. unklare Sets bewusst ausgelassen).
+- Töne: `S.soundSet` = wood/click/soft/digital/glass (im Code synthetisiert, `Synth`) oder custom (eigene Dateien wie bisher).
+  Bestehende Nutzer mit eigenen Tönen starten mit „custom“. Beim Umschalten kurze Hörprobe (Zug + Schlag).

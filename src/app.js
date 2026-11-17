@@ -9,16 +9,86 @@ const LS = {
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 // ---------- settings ----------
-const THEMES = { green: ['#ebecd0', '#739552', 'Grün'], brown: ['#f0d9b5', '#b58863', 'Holz'], blue: ['#dee3e6', '#8ca2ad', 'Blau'], gray: ['#e0e0e0', '#9a9a9a', 'Grau'] };
+// Board colours (own choice of colours, no third-party assets). [light, dark, name]
+const THEMES = {
+  green: ['#ebecd0', '#739552', 'Grün'], brown: ['#f0d9b5', '#b58863', 'Holz'], walnut: ['#e6c9a8', '#8b5a3c', 'Nussbaum'],
+  blue: ['#dee3e6', '#8ca2ad', 'Blau'], ice: ['#e5f0f5', '#6e9ab3', 'Eis'], purple: ['#e8e3f2', '#8d78b5', 'Lila'],
+  pink: ['#f6e5ea', '#d58ea4', 'Rosa'], coral: ['#f3e2cf', '#c96f58', 'Koralle'], sand: ['#f4ead2', '#c9a76b', 'Sand'],
+  olive: ['#eceacf', '#8c9157', 'Oliv'], gray: ['#e0e0e0', '#9a9a9a', 'Grau'], night: ['#8a97a8', '#4a5568', 'Nacht'],
+};
+const PATTERNS = { none: 'Keins', wood: 'Holzmaserung', linen: 'Leinen', gloss: 'Glanz' };
+// Piece sets: cburnett is built in (src/pieces.js), the others live in pieces/<set>/ (licences: THIRD_PARTY.md).
+const PIECE_SETS = {
+  cburnett: 'Klassisch', chessnut: 'Chessnut', fantasy: 'Fantasy', spatial: 'Spatial', celtic: 'Celtic',
+  firi: 'Firi', 'kiwen-suwi': 'Kiwen-suwi', shapes: 'Formen', custom: 'Eigene',
+};
 const STRENGTH = { fast: { label: 'Schnell', ms: 250, depth: 18 }, std: { label: 'Standard', ms: 600, depth: 20 }, deep: { label: 'Gründlich', ms: 1500, depth: 22 } };
-const DEFAULTS = { ccUser: '', liUser: '', sound: true, anim: true, strength: 'std', liveDepth: 18, lines: 3, arrow: true, evalbar: true, badges: true, coords: true, theme: 'green' };
+const DEFAULTS = { ccUser: '', liUser: '', sound: true, anim: true, strength: 'std', liveDepth: 18, lines: 3, arrow: true, evalbar: true, badges: true, coords: true, theme: 'green',
+  pattern: 'none', pieces: 'cburnett', boardLight: '#eeeed2', boardDark: '#6f8f9e', soundSet: '' };
 let S = Object.assign({}, DEFAULTS, LS.get('sa_settings', {}));
+if (!S.soundSet) S.soundSet = LS.get('sa_snd_move', null) ? 'custom' : 'wood'; // keep own sounds for existing users
+let customPieces = LS.get('sa_pieces_custom', null) || {};
+function pieceUrl(c) {
+  const key = (c === c.toUpperCase() ? 'w' : 'b') + c.toUpperCase();
+  if (S.pieces === 'custom') return customPieces[key] || PIECE_SVG[c];
+  if (S.pieces && S.pieces !== 'cburnett' && PIECE_SETS[S.pieces]) return `pieces/${S.pieces}/${key}.svg`;
+  return PIECE_SVG[c];
+}
+// preload the images of a set, so switching doesn't flicker
+function preloadPieces() { 'KQRBNPkqrbnp'.split('').forEach(c => { const i = new Image(); i.src = pieceUrl(c); }); }
 S.lines = Math.min(3, Math.max(1, S.lines));
 if (!STRENGTH[S.strength]) S.strength = 'std';
 const saveSettings = () => LS.set('sa_settings', S);
 
 // ---------- sound (Lichess move/capture samples) ----------
 // modes: [freq Hz, decay time-constant s, amplitude]
+// Built-in sound sets, synthesised in code (own work, no third-party audio): short decaying resonators/tones.
+const SOUND_SETS = { wood: 'Holz', click: 'Klick', soft: 'Weich', digital: 'Digital', glass: 'Glas', custom: 'Eigene Dateien' };
+const Synth = {
+  // fill an AudioBuffer with fn(t, i, sr), normalise, soft attack
+  make(ctx, dur, gen) {
+    const sr = ctx.sampleRate, n = Math.floor(sr * dur), b = ctx.createBuffer(1, n, sr), d = b.getChannelData(0);
+    gen(d, sr);
+    for (let i = 0; i < n; i++) d[i] *= Math.min(1, i / (sr * 0.0008)) * Math.min(1, (n - i) / (sr * 0.004));
+    let pk = 0; for (let i = 0; i < n; i++) pk = Math.max(pk, Math.abs(d[i]));
+    const g = pk ? 0.8 / pk : 0;
+    for (let i = 0; i < n; i++) d[i] *= g;
+    return b;
+  },
+  // knock: noise burst exciting two resonators (wood/click/soft), optional second hit
+  knock(d, sr, f1, f2, r1, r2, burst, hits) {
+    for (const [at, amp] of hits) {
+      let y1 = 0, y2 = 0, z1 = 0, z2 = 0;
+      const w1 = 2 * Math.PI * f1 / sr, w2 = 2 * Math.PI * f2 / sr, c1 = 2 * r1 * Math.cos(w1), c2 = 2 * r2 * Math.cos(w2);
+      let seed = 12345 + at * 1e5;
+      for (let i = Math.floor(at * sr); i < d.length; i++) {
+        const t = i / sr - at;
+        seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+        const x = t < burst ? ((seed / 0x7fffffff) * 2 - 1) * (1 - t / burst) : 0;
+        const a = x + c1 * y1 - r1 * r1 * y2; y2 = y1; y1 = a;
+        const b2 = x + c2 * z1 - r2 * r2 * z2; z2 = z1; z1 = b2;
+        d[i] += amp * (a * (1 - r1) + 0.6 * b2 * (1 - r2)) + amp * x * 0.03;
+      }
+    }
+  },
+  tone(d, sr, parts, at = 0, amp = 1) {
+    for (const [f, dec, a, sq] of parts) for (let i = Math.floor(at * sr); i < d.length; i++) {
+      const t = i / sr - at, s = Math.sin(2 * Math.PI * f * t);
+      d[i] += amp * a * (sq ? Math.sign(s) * 0.5 + s * 0.5 : s) * Math.exp(-t / dec);
+    }
+  },
+  build(ctx, set) {
+    const S2 = this, k = (f1, f2, r1, r2, burst, hits, dur) => S2.make(ctx, dur, (d, sr) => S2.knock(d, sr, f1, f2, r1, r2, burst, hits));
+    const t = (parts, dur, more) => S2.make(ctx, dur, (d, sr) => { S2.tone(d, sr, parts); if (more) more(d, sr); });
+    switch (set) {
+      case 'click': return { move: k(2600, 4200, 0.985, 0.97, 0.0012, [[0, 1]], 0.06), capture: k(2100, 3600, 0.987, 0.975, 0.0015, [[0, 0.8], [0.022, 1]], 0.09) };
+      case 'soft': return { move: t([[190, 0.045, 1], [380, 0.02, 0.3]], 0.16), capture: t([[150, 0.06, 1], [300, 0.03, 0.4]], 0.2, (d, sr) => S2.tone(d, sr, [[210, 0.04, 0.7]], 0.03)) };
+      case 'digital': return { move: t([[880, 0.03, 1, true]], 0.09), capture: t([[660, 0.025, 1, true]], 0.13, (d, sr) => S2.tone(d, sr, [[990, 0.03, 1, true]], 0.05)) };
+      case 'glass': return { move: t([[1480, 0.12, 1], [3420, 0.06, 0.45], [5150, 0.035, 0.25]], 0.35), capture: t([[1110, 0.15, 1], [2570, 0.08, 0.5], [3900, 0.05, 0.3]], 0.42, (d, sr) => S2.tone(d, sr, [[1480, 0.1, 0.6]], 0.04)) };
+      default: return { move: k(720, 1180, 0.994, 0.99, 0.002, [[0, 1]], 0.14), capture: k(540, 900, 0.995, 0.99, 0.0025, [[0, 0.75], [0.018, 1]], 0.17) };
+    }
+  },
+};
 const Sound = {
   ctx: null, bufs: null, building: null, stale: false,
   // Must run inside a user gesture. iOS suspends ("interrupted") the audio context whenever the app is left;
@@ -45,10 +115,15 @@ const Sound = {
   async build() {
     this.building = (async () => {
       const out = {};
-      for (const kind of ['move', 'capture']) {
-        const b64 = LS.get('sa_snd_' + kind, null);
-        const b = b64 ? await this.decodeB64(b64) : null;
-        out[kind] = b ? [b] : [];
+      if (S.soundSet === 'custom') {
+        for (const kind of ['move', 'capture']) {
+          const b64 = LS.get('sa_snd_' + kind, null);
+          const b = b64 ? await this.decodeB64(b64) : null;
+          out[kind] = b ? [b] : [];
+        }
+      } else {
+        const g = Synth.build(this.ctx, S.soundSet);
+        out.move = [g.move]; out.capture = [g.capture];
       }
       this.bufs = out;
     })();
@@ -604,7 +679,10 @@ const boardEl = $('board');
 function renderBoard() {
   const fen = curFen();
   const p = C.parseFen(fen);
-  const [light, dark] = THEMES[S.theme] || THEMES.green;
+  const boardImg = S.theme === 'image' ? LS.get('sa_board_img', null) : null;
+  const [light, dark] = S.theme === 'custom' ? [S.boardLight, S.boardDark] : boardImg ? ['rgba(255,255,255,.9)', 'rgba(0,0,0,.55)'] : (THEMES[S.theme] || THEMES.green);
+  boardEl.className = 'board' + (boardImg ? ' img' : ' pat-' + (S.pattern || 'none'));
+  boardEl.style.backgroundImage = boardImg ? `url('${boardImg}')` : '';
   const lm = lastMove();
   const lmCls = inGamePos() ? (gamePly() > 0 && game && !game.free ? cls[gamePly() - 1] : null) : varCls();
   const lmColor = lmCls && S.badges ? hexA(A.CLASSES[lmCls.type].color, 0.5) : 'rgba(255,255,51,.5)';
@@ -624,11 +702,11 @@ function renderBoard() {
       if (vi % 8 === 0) inner += `<span class="co r" style="color:${col}">${8 - r}</span>`;
       if (vi >= 56) inner += `<span class="co f" style="color:${col}">${'abcdefgh'[f]}</span>`;
     }
-    if (p.b[s]) inner += `<div class="pc" style="background-image:url('${PIECE_SVG[p.b[s]]}')"></div>`;
+    if (p.b[s]) inner += `<div class="pc" style="background-image:url('${pieceUrl(p.b[s])}')"></div>`;
     const tg = targets.find(m => m.to === s);
     if (tg) inner += tg.captured ? '<div class="ring"></div>' : '<div class="dot"></div>';
     if (S.badges && lmCls && lm && s === lm.to) inner += badge(lmCls.type);
-    h += `<div class="sq" data-s="${s}" style="background:${isLight ? light : dark}">${inner}</div>`;
+    h += `<div class="sq ${isLight ? 'l' : 'd'}" data-s="${s}"${boardImg ? '' : ` style="background-color:${isLight ? light : dark}"`}>${inner}</div>`;
   }
   boardEl.innerHTML = h;
   runAnim();
@@ -720,7 +798,7 @@ function renderPlayers() {
       const lost = Math.max(0, START[t] - (have[opp][t] || 0));
       if (!lost) continue;
       const key = opp === 'w' ? t.toUpperCase() : t;
-      h2 += `<span class="mgrp">${`<i style="background-image:url('${PIECE_SVG[key]}')"></i>`.repeat(lost)}</span>`;
+      h2 += `<span class="mgrp">${`<i style="background-image:url('${pieceUrl(key)}')"></i>`.repeat(lost)}</span>`;
     }
     const adv = color === 'w' ? diff : -diff;
     return `<span class="mat">${h2}${adv > 0 ? `<b>+${adv}</b>` : ''}</span>`; // always present: reserves the row, no jump on first capture
@@ -1093,7 +1171,7 @@ function askPromo(ms) {
   const color = C.colorOf(ms[0].piece);
   $('promoChoices').innerHTML = ['q', 'r', 'b', 'n'].map(t => {
     const k = color === 'w' ? t.toUpperCase() : t;
-    return `<button data-pr="${t}" style="background-image:url('${PIECE_SVG[k]}')"></button>`;
+    return `<button data-pr="${t}" style="background-image:url('${pieceUrl(k)}')"></button>`;
   }).join('');
   $('promo').classList.add('open');
 }
@@ -1472,21 +1550,46 @@ $('glist').onclick = e => {
 function renderSettings() {
   const tog = (k, label, sub) => `<div class="set"><label>${label}${sub ? `<small>${sub}</small>` : ''}</label><button class="toggle ${S[k] ? 'on' : ''}" data-tog="${k}"></button></div>`;
   const rng = (k, label, min, max, sub) => `<div class="set"><label>${label}: <span id="v_${k}">${S[k]}</span>${sub ? `<small>${sub}</small>` : ''}</label><input type="range" min="${min}" max="${max}" value="${S[k]}" data-rng="${k}"></div>`;
+  const PK = ['wK', 'wQ', 'wR', 'wB', 'wN', 'wP', 'bK', 'bQ', 'bR', 'bB', 'bN', 'bP'];
+  const nCustom = PK.filter(k => customPieces[k]).length;
+  const sw = (k, l, d, name, extra = '') => `<button class="sw${S.theme === k ? ' on' : ''}" data-theme="${k}" title="${name}"><span class="swb"${extra}>${[l, d, d, l].map(c => `<i style="background:${c}"></i>`).join('')}</span><span>${name}</span></button>`;
+  const setTile = k => {
+    const prev = S.pieces; S.pieces = k; const a = pieceUrl('N'), b = pieceUrl('k'); S.pieces = prev;
+    return `<button class="pset${S.pieces === k ? ' on' : ''}" data-pieces="${k}"><span class="psimg"><i style="background-image:url('${a}')"></i><i style="background-image:url('${b}')"></i></span><span>${PIECE_SETS[k]}</span></button>`;
+  };
+  const img = LS.get('sa_board_img', null);
   $('setList').innerHTML =
     `<div class="set"><label>Analyse-Stärke<small>Schnell ≈ 0,25 s, Standard ≈ 0,6 s, Gründlich ≈ 1,5 s pro Stellung</small></label><select data-sel="strength">${Object.entries(STRENGTH).map(([k, v]) => `<option value="${k}" ${S.strength === k ? 'selected' : ''}>${v.label}</option>`).join('')}</select></div>` +
     rng('liveDepth', 'Tiefe für eigene Varianten', 10, 24, 'Nur wenn du selbst Züge auf dem Brett ausprobierst') +
     rng('lines', 'Engine-Linien', 1, 3) +
+    `<h4 class="seth">Aussehen</h4>` +
+    `<div class="setblk"><label>Brett</label><div class="swgrid">${Object.entries(THEMES).map(([k, v]) => sw(k, v[0], v[1], v[2])).join('')}` +
+      sw('custom', S.boardLight, S.boardDark, 'Eigene Farben') +
+      `<button class="sw${S.theme === 'image' ? ' on' : ''}" data-theme="image"><span class="swb img"${img ? ` style="background-image:url('${img}')"` : ''}>${img ? '' : '<b>+</b>'}</span><span>Eigenes Bild</span></button></div>` +
+      (S.theme === 'custom' ? `<div class="setrow"><label>Hell <input type="color" data-col="boardLight" value="${S.boardLight}"></label><label>Dunkel <input type="color" data-col="boardDark" value="${S.boardDark}"></label></div>` : '') +
+      (S.theme === 'image' ? `<div class="setrow"><label class="iconbtn">${img ? 'Anderes Bild wählen' : 'Bild wählen'}<input type="file" accept="image/*" data-boardimg hidden></label><small>Ein Foto oder Bild eines Bretts (wird quadratisch zugeschnitten)</small></div>` : '') +
+    `<div class="hint" id="setHint"></div></div>` +
+    (S.theme === 'image' ? '' : `<div class="set"><label>Muster</label><select data-sel="pattern">${Object.entries(PATTERNS).map(([k, v]) => `<option value="${k}" ${S.pattern === k ? 'selected' : ''}>${v}</option>`).join('')}</select></div>`) +
+    `<div class="setblk"><label>Figuren</label><div class="psgrid">${Object.keys(PIECE_SETS).map(setTile).join('')}</div>` +
+      (S.pieces === 'custom' ? `<div class="setrow"><label class="iconbtn">Bilder wählen<input type="file" accept="image/*,.svg" multiple data-piecefiles hidden></label><small>${nCustom}/12 geladen. Dateinamen wie wK, wQ … bP (oder „white-king“, „black-pawn“), SVG oder PNG.</small></div><div class="hint" id="pcHint"></div>` : '') +
+    `</div>` +
+    `<h4 class="seth">Ton</h4>` +
     tog('sound', 'Ton', 'Zug- und Schlaggeräusche') +
-    ['move', 'capture'].map(k => `<div class="set"><label>${k === 'move' ? 'Zug-Ton' : 'Schlag-Ton'}<small>${LS.get('sa_snd_' + k, null) ? '✓ geladen' : 'noch keine Datei'}</small></label><label class="iconbtn">Datei wählen<input type="file" accept="audio/*,.mp3,.ogg,.wav,.m4a" data-sndfile="${k}" hidden></label></div>`).join('') +
+    `<div class="set"><label>Klang<small>Eingebaute Klänge sind selbst erzeugt</small></label><select data-sel="soundSet">${Object.entries(SOUND_SETS).map(([k, v]) => `<option value="${k}" ${S.soundSet === k ? 'selected' : ''}>${v}</option>`).join('')}</select></div>` +
+    (S.soundSet === 'custom' ? ['move', 'capture'].map(k => `<div class="set"><label>${k === 'move' ? 'Zug-Ton' : 'Schlag-Ton'}<small>${LS.get('sa_snd_' + k, null) ? '✓ geladen' : 'noch keine Datei'}</small></label><label class="iconbtn">Datei wählen<input type="file" accept="audio/*,.mp3,.ogg,.wav,.m4a" data-sndfile="${k}" hidden></label></div>`).join('') : '') +
     `<div class="hint" id="sndHint"></div>` +
+    `<h4 class="seth">Brett & Anzeige</h4>` +
     tog('anim', 'Animationen', 'Figuren gleiten beim Durchklicken') +
     tog('arrow', 'Pfeil für besten Zug') +
     tog('evalbar', 'Bewertungsleiste') +
     tog('badges', 'Bewertungssymbole auf dem Brett') +
-    tog('coords', 'Koordinaten') +
-    `<div class="set"><label>Brettfarbe</label><select data-sel="theme">${Object.entries(THEMES).map(([k, v]) => `<option value="${k}" ${S.theme === k ? 'selected' : ''}>${v[2]}</option>`).join('')}</select></div>`;
+    tog('coords', 'Koordinaten');
 }
 $('setList').addEventListener('click', e => {
+  const th = e.target.closest('[data-theme]');
+  if (th) { S.theme = th.dataset.theme; saveSettings(); renderSettings(); renderAll(); return; }
+  const ps = e.target.closest('[data-pieces]');
+  if (ps) { S.pieces = ps.dataset.pieces; saveSettings(); preloadPieces(); renderSettings(); renderAll(); return; }
   const t = e.target.closest('[data-tog]');
   if (!t) return;
   S[t.dataset.tog] = !S[t.dataset.tog]; saveSettings();
@@ -1494,6 +1597,8 @@ $('setList').addEventListener('click', e => {
   liveCache.clear(); renderAll();
 });
 $('setList').addEventListener('input', e => {
+  const col = e.target.closest('[data-col]');
+  if (col) { S[col.dataset.col] = col.value; saveSettings(); renderBoard(); return; }
   const r = e.target.closest('[data-rng]');
   if (r) { S[r.dataset.rng] = +r.value; $('v_' + r.dataset.rng).textContent = r.value; saveSettings(); }
 });
@@ -1516,10 +1621,73 @@ $('setList').addEventListener('change', e => {
     r.readAsDataURL(f);
     return;
   }
+  const bi = e.target.closest('[data-boardimg]');
+  if (bi && bi.files[0]) { loadBoardImage(bi.files[0]); return; }
+  const pf = e.target.closest('[data-piecefiles]');
+  if (pf && pf.files.length) { loadPieceFiles([...pf.files]); return; }
   const s = e.target.closest('[data-sel]');
-  if (s) { S[s.dataset.sel] = s.value; saveSettings(); renderAll(); }
+  if (s) {
+    S[s.dataset.sel] = s.value; saveSettings();
+    if (s.dataset.sel === 'soundSet') {
+      Sound.bufs = null; renderSettings();
+      Sound.unlock();
+      (async () => { if (Sound.building) await Sound.building; const was = S.sound; S.sound = true; Sound.play('move'); setTimeout(() => { Sound.play('capture'); S.sound = was; }, 350); })();
+    } else renderSettings();
+    renderAll();
+  }
   if (e.target.closest('[data-rng]')) { liveCache.clear(); if (game) renderBoardAndInfo(); }
 });
+// own board image: cropped to a square and stored as JPEG in localStorage
+function loadImageFile(file) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file), im = new Image();
+    im.onload = () => { res(im); setTimeout(() => URL.revokeObjectURL(url), 1000); };
+    im.onerror = () => rej(new Error('Bild konnte nicht gelesen werden.'));
+    im.src = url;
+  });
+}
+async function loadBoardImage(file) {
+  try {
+    const im = await loadImageFile(file), n = 720, s = Math.min(im.width, im.height);
+    const cv = document.createElement('canvas'); cv.width = cv.height = n;
+    cv.getContext('2d').drawImage(im, (im.width - s) / 2, (im.height - s) / 2, s, s, 0, 0, n, n);
+    if (!LS.set('sa_board_img', cv.toDataURL('image/jpeg', 0.85))) throw new Error('Speichern fehlgeschlagen (zu wenig Speicher).');
+    S.theme = 'image'; saveSettings(); renderSettings(); renderAll();
+  } catch (err) { const h = $('setHint'); if (h) h.textContent = err.message; }
+}
+// own piece set: file names decide which piece it is (wK.svg, black-knight.png, …)
+function pieceKeyFromName(name) {
+  const n = name.toLowerCase().replace(/\.[a-z0-9]+$/, '');
+  let m = /^([wb])[-_ ]?([kqrbnp])$/.exec(n);
+  if (m) return m[1] + m[2].toUpperCase();
+  const col = /white|weiss|weiß|^w[-_ ]/.test(n) ? 'w' : /black|schwarz|^b[-_ ]/.test(n) ? 'b' : null;
+  const words = { king: 'K', koenig: 'K', könig: 'K', queen: 'Q', dame: 'Q', rook: 'R', turm: 'R', bishop: 'B', laeufer: 'B', läufer: 'B', knight: 'N', springer: 'N', pawn: 'P', bauer: 'P' };
+  const w = Object.keys(words).find(k => n.includes(k));
+  return col && w ? col + words[w] : null;
+}
+async function loadPieceFiles(files) {
+  const hint = $('pcHint'), next = Object.assign({}, customPieces), skipped = [];
+  for (const f of files) {
+    const key = pieceKeyFromName(f.name);
+    if (!key) { skipped.push(f.name); continue; }
+    try {
+      if (/svg/.test(f.type) || /\.svg$/i.test(f.name)) {
+        if (f.size > 150000) { skipped.push(f.name); continue; }
+        next[key] = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); });
+      } else {
+        const im = await loadImageFile(f), cv = document.createElement('canvas'); cv.width = cv.height = 160;
+        const sc = Math.min(160 / im.width, 160 / im.height), w = im.width * sc, h = im.height * sc;
+        cv.getContext('2d').drawImage(im, (160 - w) / 2, (160 - h) / 2, w, h);
+        next[key] = cv.toDataURL('image/png');
+      }
+    } catch (e) { skipped.push(f.name); }
+  }
+  if (!LS.set('sa_pieces_custom', next)) { if (hint) hint.textContent = 'Speichern fehlgeschlagen (zu wenig Speicher).'; return; }
+  customPieces = next;
+  renderSettings(); renderAll();
+  const h2 = $('pcHint');
+  if (h2 && skipped.length) h2.textContent = `Nicht erkannt: ${skipped.join(', ')}`;
+}
 $('bCancelAna').onclick = () => { analysisToken++; cancelAll('full'); analyzing = false; showOverlay(false); renderAll(); };
 
 // ---------- review overview (shown after the analysis) ----------
