@@ -123,5 +123,6 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
 - Falscher Zug im Training (`wrongTrainMove`): Zug bleibt stehen, Engine-Antwort des Gegners (aus `checkTrainMove` bzw.
   kurze Suche 400 ms) wird gespielt, Text erklärt sie („Na7? Rxa7 schlägt deinen Springer.“, Matt, Gabel), nach 1,4 s
   werden Antwort und eigener Zug animiert zurückgenommen → neuer Versuch. Währenddessen kein Blättern (`goto` gesperrt).
-- Nach gelöster Aufgabe: „Weiterspielen“ (`continueFromTask`) macht aus der Aufgabe eine normale Partie (`game.sandbox`),
-  weitere Züge (beide Seiten) laufen als Variante mit Bewertungssymbolen, Engine-Zeilen und Bewertungsleiste.
+- Nach gelöster Aufgabe geht es automatisch frei weiter (`continueFromTask`, kein Extra-Knopf): Aufgabe wird zur normalen
+  Partie (`game.sandbox`), weitere Züge (beide Seiten) laufen als Variante mit Bewertungssymbolen, Engine-Zeilen und
+  Bewertungsleiste. Die Aufgabenkarte (gelöst + „Nächste Aufgabe“) bleibt sichtbar über `body.traindone`.

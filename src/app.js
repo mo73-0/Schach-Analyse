@@ -432,6 +432,7 @@ function unslim(ev) {
 
 // ---------- load ----------
 function loadGame(parsed, pgnText, cached) {
+  document.body.classList.remove('traindone');
   cancelAll();
   analysisToken++;
   game = { ...parsed, pgn: pgnText };
@@ -1893,7 +1894,7 @@ function openTask(i) {
   trainSt = { tries: 0, done: false, shown: false, msg: '', step: 0, tip: false, busy: !!t.pre };
   closeModals();
   showView('board');
-  document.body.classList.add('training');
+  document.body.classList.add('training'); document.body.classList.remove('traindone');
   renderBoardAndInfo();
   renderTrainCard();
   // first show the opponent's move that led to the task position
@@ -1923,7 +1924,8 @@ function renderTrainCard() {
     el.innerHTML = `<div class="meta"><span>Aufgabe ${trainIdx + 1} von ${trainTasks.length}</span><span>${t.gt ? timeAgo(t.gt) : ''}</span></div>
       <div class="tsolved"><div class="tsico">${ok ? '✓' : '!'}</div><div><div class="tst">${ok ? 'Aufgabe gelöst!' : 'Mit Lösungshilfe geschafft'}</div><div class="tss">${esc(ok ? trainSt.msg.replace(/^Richtig!\s*/, '') : 'Diese Aufgabe bleibt in deiner Liste, damit du sie später nochmal allein lösen kannst.')}</div></div></div>
       ${t.why ? `<div class="fbwhy">${esc(t.why)}</div>` : ''}
-      <div class="row"><button class="iconbtn" id="bTrPlay">Weiterspielen</button><button class="primary" id="bTrNext">${trainIdx + 1 < trainTasks.length ? 'Nächste Aufgabe ›' : 'Fertig'}</button></div>`;
+      <div class="tplay">Du kannst die Stellung jetzt frei weiterspielen – jeder Zug wird bewertet.</div>
+      <div class="row"><button class="primary" id="bTrNext">${trainIdx + 1 < trainTasks.length ? 'Nächste Aufgabe ›' : 'Fertig'}</button></div>`;
     return;
   }
   el.innerHTML = `<div class="meta"><span>Aufgabe ${trainIdx + 1} von ${trainTasks.length}${nOwn > 1 ? ` · Zug ${Math.min(Math.floor(trainSt.step / 2) + 1, nOwn)}/${nOwn}` : ''}</span><span>${t.gt ? timeAgo(t.gt) : ''}</span></div>
@@ -1936,7 +1938,6 @@ $('trainCard').onclick = e => {
     if (trainIdx + 1 < trainTasks.length) openTask(trainIdx + 1); else showView('home');
     return;
   }
-  if (e.target.closest('#bTrPlay')) { continueFromTask(); return; }
   if (e.target.closest('#bTrTip')) { trainSt.tip = true; renderTrainCard(); return; }
   if (e.target.closest('#bTrHint')) {
     const t = trainTasks[trainIdx];
@@ -1980,7 +1981,13 @@ function trainerMove(m) {
       renderBoardAndInfo(); renderTrainCard(); flashSolved();
       // single-move tasks: show the opponent's answer afterwards
       const reply = line.length === 1 && !isAlt && !mates && t.pv[1];
-      if (reply) setTimeout(() => { if (game && game.trainer && trainTasks[trainIdx] === t) { trainerApply(reply); renderBoardAndInfo(); } }, 700);
+      if (reply) {
+        trainSt.busy = true;
+        setTimeout(() => {
+          if (!(game && game.trainer && trainTasks[trainIdx] === t)) return;
+          trainerApply(reply); trainSt.busy = false; continueFromTask();
+        }, 700);
+      } else continueFromTask();
     } else {
       // opponent answers with the engine move, then it's the player's turn again
       trainSt.msg = `Richtig, ${san}! Wie geht es weiter?`; trainSt.good = true;
@@ -2006,7 +2013,7 @@ function trainerMove(m) {
         trainSt.done = true; trainSt.step = line.length;
         trainSt.msg = `Richtig! ${san} ist genauso gut.`;
         const pr = trainProg(); pr[t.id] = { ok: true, tries: trainSt.tries + 1 }; LS.set('sa_train', pr);
-        renderBoardAndInfo(); renderTrainCard(); flashSolved();
+        renderBoardAndInfo(); renderTrainCard(); flashSolved(); continueFromTask();
       } else wrongTrainMove(t, san, mv, true, null, res.line);
     });
   } else {
@@ -2095,7 +2102,8 @@ function continueFromTask() {
   game = { headers: g0.headers, startFen: g0.startFen, moves: g0.moves.slice(), free: false, trainer: false, sandbox: true };
   evals = []; cls = []; variation = null; selected = null; trainArrow = null; ply = positions.length - 1;
   document.body.classList.remove('training');
-  renderBoardAndInfo();
+  document.body.classList.add('traindone'); // task card (solved + „Nächste Aufgabe“) stays visible
+  renderBoardAndInfo(); renderTrainCard();
 }
 
 function renderHomeExtras() { renderTiles(); renderTrend(); renderTrainHome(); renderOpenings(); }
@@ -2112,6 +2120,7 @@ function showView(v) {
   $('bFlip').style.display = v === 'board' ? '' : 'none';
   $('btnReview').style.display = v === 'board' && game && !game.free && cls.some(Boolean) && !analyzing ? '' : 'none';
   if (v !== 'board' || !(game && game.trainer)) { document.body.classList.remove('training'); trainArrow = null; }
+  if (v !== 'board') document.body.classList.remove('traindone');
   if (v === 'review') renderReview();
   if (v === 'home') {
     Engine.cancel('live');
