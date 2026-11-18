@@ -1570,7 +1570,7 @@ const Dict = {
     $('vStart').style.display = 'none';
     this.started = true; this.on = true;
     Clock.turn = 'w'; Clock.go(); Clock.render();
-    this.msg = '🎤 Sag den Zug an, z. B. „e4“ oder „Springer f3“.';
+    this.msg = 'Sag den Zug an, z. B. „e4“ oder „Springer f3“.';
     this.render();
     this.say('Los gehts');
   },
@@ -1587,7 +1587,7 @@ const Dict = {
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const r = e.results[i];
         if (r.isFinal) this.heard([...r].map(a => a.transcript));
-        else { this.msg = `🎤 „${esc(r[0].transcript)}“ …`; this.renderStat(); }
+        else { this.msg = `„${esc(r[0].transcript)}“ …`; this.renderStat(); }
       }
     };
     rec.onerror = e => {
@@ -1700,7 +1700,7 @@ const Dict = {
   },
   onFlag(side) {
     this.stop();
-    this.msg = `⏱ Zeit abgelaufen: ${side === 'w' ? 'Weiß' : 'Schwarz'}`; this.renderStat();
+    this.msg = `Zeit abgelaufen: ${side === 'w' ? 'Weiß' : 'Schwarz'}`; this.renderStat();
     this.say('Zeit abgelaufen.');
     setTimeout(() => openResult(), 900);
   },
@@ -1800,16 +1800,16 @@ $('vTest').onclick = () => {
   try { rec = new SR(); } catch (e) { out.textContent = `✗ Spracherkennung konnte nicht gestartet werden (${mode}): ${e.message}`; return; }
   rec.lang = 'de-DE'; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 3;
   let heard = '', alts = [];
-  rec.onstart = () => { out.textContent = `🎤 Hört zu … sag z. B. „Springer d4“ (${mode})`; $('vTest').textContent = 'Stopp'; };
+  rec.onstart = () => { out.textContent = `Hört zu … sag z. B. „Springer d4“ (${mode})`; $('vTest').textContent = 'Stopp'; };
   rec.onresult = e => {
     const r = e.results[e.results.length - 1];
     heard = r[0].transcript;
     if (r.isFinal) alts = [...r].map(a => a.transcript);
-    out.textContent = `🎤 „${heard}“`;
+    out.textContent = `„${heard}“`;
   };
   rec.onerror = e => { out.textContent = `✗ Fehler: ${e.error}${e.error === 'not-allowed' ? ' – Mikrofon oder Spracherkennung nicht erlaubt' : e.error === 'service-not-allowed' ? ' – in dieser Umgebung gesperrt (evtl. nur in Safari möglich) oder Diktieren in den iPhone-Einstellungen aus' : ''} (${mode})`; };
   rec.onend = () => {
-    vRec = null; $('vTest').textContent = '🎤 Spracheingabe testen';
+    vRec = null; $('vTest').textContent = 'Spracheingabe testen';
     if (heard) out.textContent = `✓ Funktioniert (${mode})!\nErkannt: „${heard}“${alts.length > 1 ? `\nAlternativen: ${alts.slice(1).map(a => `„${a}“`).join(', ')}` : ''}`;
   };
   vRec = rec;
@@ -2157,7 +2157,7 @@ function renderBilanz() {
   const last = list.slice(0, 10);
   parts.push(`Letzte ${last.length}: ${sc(last)}`);
   let n = 0; while (n < list.length && list[n].res === list[0].res) n++;
-  if (n >= 2 && list[0].res !== 'd') parts.push(`Serie: ${n} ${list[0].res === 'w' ? 'Siege' : 'Niederlagen'} in Folge ${list[0].res === 'w' ? '🔥' : ''}`);
+  if (n >= 2 && list[0].res !== 'd') parts.push(`Serie: ${n} ${list[0].res === 'w' ? 'Siege' : 'Niederlagen'} in Folge`);
   el.innerHTML = parts.map(p => `<div>${p}</div>`).join('');
 }
 

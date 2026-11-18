@@ -283,7 +283,7 @@ body:not([data-view=home]) header h1 .t{display:none}
 .accinfo button{color:var(--accent);font-weight:700;padding:0;font-size:13px}
 .homeact{margin-top:14px}
 .clkcard{display:flex;align-items:center;gap:14px;width:100%;margin:10px 0 0;padding:18px 16px;border:0;border-radius:14px;background:var(--panel);color:#fff;text-align:left}
-.clkcard .clkico{font-size:34px;line-height:1}.clkcard b{display:block;font-size:18px}.clkcard small{display:block;color:var(--muted);font-size:13px;margin-top:2px}.clkcard>span:nth-child(2){flex:1}.clkcard .clkarr{font-size:28px;color:var(--muted)}.homeact .iconbtn{flex:1 1 auto}
+.clkcard .clkico{line-height:0;color:var(--accent,#81b64c)}.clkcard b{display:block;font-size:18px}.clkcard small{display:block;color:var(--muted);font-size:13px;margin-top:2px}.clkcard>span:nth-child(2){flex:1}.clkcard .clkarr{font-size:28px;color:var(--muted)}.homeact .iconbtn{flex:1 1 auto}
 .glist .g .top{display:flex;align-items:baseline;gap:6px}
 .glist .g .ago{margin-left:auto;color:var(--muted);font-size:12px;font-weight:600;white-space:nowrap}
 .srcchip{display:inline-block;font-size:11px;font-weight:800;padding:1px 6px;border-radius:4px;margin-right:4px}
@@ -321,7 +321,7 @@ body:not([data-view=home]) header h1 .t{display:none}
     <div class="card homecard" id="trainHome" style="display:none"></div>
     <div class="card homecard" id="trendCard" style="display:none"></div>
     <div class="card homecard" id="openCard" style="display:none"></div>
-    <button class="clkcard" id="bHomeClock"><span class="clkico">⏱</span><span><b>Schachuhr</b><small>Für Partien am Brett – klassisch oder mit Spracheingabe</small></span><span class="clkarr">›</span></button>
+    <button class="clkcard" id="bHomeClock"><span class="clkico"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="14" r="8"/><path d="M12 14V10M10 2h4M12 2v4M19 7l1.5-1.5"/></svg></span><span><b>Schachuhr</b><small>Für Partien am Brett – klassisch oder mit Spracheingabe</small></span><span class="clkarr">›</span></button>
     <div class="row homeact"><button class="iconbtn" id="bHomePgn">PGN einfügen</button><button class="iconbtn" id="bHomeSaved">Gespeicherte Analysen</button><button class="iconbtn" id="bHomeFree">Analysebrett</button></div>
   </div>
   <div id="viewReview" style="display:none"></div>
@@ -382,8 +382,8 @@ body:not([data-view=home]) header h1 .t{display:none}
 <div id="clockView">
   <div id="clkMode" class="clkpage">
     <h2>Schachuhr <button class="iconbtn" data-clkclose>✕</button></h2>
-    <button class="clkmode" data-mode="classic"><b>⏱ Klassische Uhr</b><small>Zwei große Uhrhälften – nach dem Zug auf die eigene Hälfte tippen.</small></button>
-    <button class="clkmode" data-mode="voice"><b>🎤 Uhr mit Spracheingabe</b><small>Züge ansagen, die Uhr wechselt von selbst. In der Mitte siehst du das Brett, am Ende wird die Partie analysiert.</small></button>
+    <button class="clkmode" data-mode="classic"><b>Klassische Uhr</b><small>Zwei große Uhrhälften – nach dem Zug auf die eigene Hälfte tippen.</small></button>
+    <button class="clkmode" data-mode="voice"><b>Uhr mit Spracheingabe</b><small>Züge ansagen, die Uhr wechselt von selbst. In der Mitte siehst du das Brett, am Ende wird die Partie analysiert.</small></button>
   </div>
   <div id="clkSetup" class="clkpage" style="display:none">
     <h2><button class="iconbtn" id="clkBack">‹</button><span id="clkSetTitle"></span><button class="iconbtn" data-clkclose>✕</button></h2>
@@ -392,7 +392,7 @@ body:not([data-view=home]) header h1 .t{display:none}
     <div class="clknames" id="clkNames"><label>Weiß (unten) <input id="clkWName" autocomplete="off"></label><label>Schwarz (oben) <input id="clkBName" autocomplete="off"></label></div>
     <button class="primary" id="clkStart">Uhr starten</button>
     <div class="hint" id="clkHint"></div>
-    <div class="voicetest" id="vTestBox"><button class="iconbtn" id="vTest">🎤 Spracheingabe testen</button><div class="hint" id="vOut"></div></div>
+    <div class="voicetest" id="vTestBox"><button class="iconbtn" id="vTest">Spracheingabe testen</button><div class="hint" id="vOut"></div></div>
   </div>
   <div id="clkPlay" style="display:none">
     <button class="clkside top" id="clkB"><span class="clkt"></span><span class="clkm"></span></button>

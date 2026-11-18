@@ -41,6 +41,7 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
 
 ## Wichtige Entscheidungen / Wünsche des Nutzers
 - Optik an chess.com angelehnt (grünes Brett, dunkles UI), aber keine chess.com-Assets.
+- Keine Emojis in der Oberfläche (wirkt „nach KI“); Symbole höchstens schlicht (✓ ✗ ‹ ›) oder eigene einfarbige SVG-Icons.
 - Analyse wird beim Import komplett vorab berechnet (Ladeanzeige), danach beim Durchklicken keine Berechnung.
   Live-Engine nur für eigene Varianten.
 - Analyse-Stärke als Zeitbudget pro Stellung (Schnell/Standard/Gründlich), nicht als feste Tiefe.

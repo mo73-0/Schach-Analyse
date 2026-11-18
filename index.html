@@ -286,7 +286,7 @@ body:not([data-view=home]) header h1 .t{display:none}
 .accinfo button{color:var(--accent);font-weight:700;padding:0;font-size:13px}
 .homeact{margin-top:14px}
 .clkcard{display:flex;align-items:center;gap:14px;width:100%;margin:10px 0 0;padding:18px 16px;border:0;border-radius:14px;background:var(--panel);color:#fff;text-align:left}
-.clkcard .clkico{font-size:34px;line-height:1}.clkcard b{display:block;font-size:18px}.clkcard small{display:block;color:var(--muted);font-size:13px;margin-top:2px}.clkcard>span:nth-child(2){flex:1}.clkcard .clkarr{font-size:28px;color:var(--muted)}.homeact .iconbtn{flex:1 1 auto}
+.clkcard .clkico{line-height:0;color:var(--accent,#81b64c)}.clkcard b{display:block;font-size:18px}.clkcard small{display:block;color:var(--muted);font-size:13px;margin-top:2px}.clkcard>span:nth-child(2){flex:1}.clkcard .clkarr{font-size:28px;color:var(--muted)}.homeact .iconbtn{flex:1 1 auto}
 .glist .g .top{display:flex;align-items:baseline;gap:6px}
 .glist .g .ago{margin-left:auto;color:var(--muted);font-size:12px;font-weight:600;white-space:nowrap}
 .srcchip{display:inline-block;font-size:11px;font-weight:800;padding:1px 6px;border-radius:4px;margin-right:4px}
@@ -324,7 +324,7 @@ body:not([data-view=home]) header h1 .t{display:none}
     <div class="card homecard" id="trainHome" style="display:none"></div>
     <div class="card homecard" id="trendCard" style="display:none"></div>
     <div class="card homecard" id="openCard" style="display:none"></div>
-    <button class="clkcard" id="bHomeClock"><span class="clkico">⏱</span><span><b>Schachuhr</b><small>Für Partien am Brett – klassisch oder mit Spracheingabe</small></span><span class="clkarr">›</span></button>
+    <button class="clkcard" id="bHomeClock"><span class="clkico"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="14" r="8"/><path d="M12 14V10M10 2h4M12 2v4M19 7l1.5-1.5"/></svg></span><span><b>Schachuhr</b><small>Für Partien am Brett – klassisch oder mit Spracheingabe</small></span><span class="clkarr">›</span></button>
     <div class="row homeact"><button class="iconbtn" id="bHomePgn">PGN einfügen</button><button class="iconbtn" id="bHomeSaved">Gespeicherte Analysen</button><button class="iconbtn" id="bHomeFree">Analysebrett</button></div>
   </div>
   <div id="viewReview" style="display:none"></div>
@@ -385,8 +385,8 @@ body:not([data-view=home]) header h1 .t{display:none}
 <div id="clockView">
   <div id="clkMode" class="clkpage">
     <h2>Schachuhr <button class="iconbtn" data-clkclose>✕</button></h2>
-    <button class="clkmode" data-mode="classic"><b>⏱ Klassische Uhr</b><small>Zwei große Uhrhälften – nach dem Zug auf die eigene Hälfte tippen.</small></button>
-    <button class="clkmode" data-mode="voice"><b>🎤 Uhr mit Spracheingabe</b><small>Züge ansagen, die Uhr wechselt von selbst. In der Mitte siehst du das Brett, am Ende wird die Partie analysiert.</small></button>
+    <button class="clkmode" data-mode="classic"><b>Klassische Uhr</b><small>Zwei große Uhrhälften – nach dem Zug auf die eigene Hälfte tippen.</small></button>
+    <button class="clkmode" data-mode="voice"><b>Uhr mit Spracheingabe</b><small>Züge ansagen, die Uhr wechselt von selbst. In der Mitte siehst du das Brett, am Ende wird die Partie analysiert.</small></button>
   </div>
   <div id="clkSetup" class="clkpage" style="display:none">
     <h2><button class="iconbtn" id="clkBack">‹</button><span id="clkSetTitle"></span><button class="iconbtn" data-clkclose>✕</button></h2>
@@ -395,7 +395,7 @@ body:not([data-view=home]) header h1 .t{display:none}
     <div class="clknames" id="clkNames"><label>Weiß (unten) <input id="clkWName" autocomplete="off"></label><label>Schwarz (oben) <input id="clkBName" autocomplete="off"></label></div>
     <button class="primary" id="clkStart">Uhr starten</button>
     <div class="hint" id="clkHint"></div>
-    <div class="voicetest" id="vTestBox"><button class="iconbtn" id="vTest">🎤 Spracheingabe testen</button><div class="hint" id="vOut"></div></div>
+    <div class="voicetest" id="vTestBox"><button class="iconbtn" id="vTest">Spracheingabe testen</button><div class="hint" id="vOut"></div></div>
   </div>
   <div id="clkPlay" style="display:none">
     <button class="clkside top" id="clkB"><span class="clkt"></span><span class="clkm"></span></button>
@@ -427,7 +427,7 @@ body:not([data-view=home]) header h1 .t{display:none}
   </div>
 </div></div>
 
-<script>window.SA_VERSION="7ec31fd3";window.SA_BUILT="18.11.2026 03:23";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
+<script>window.SA_VERSION="fee8d6bc";window.SA_BUILT="18.11.2026 03:30";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
 <script>// Minimal chess core: board, legal moves, SAN, FEN, PGN. Square 0 = a8, 63 = h1.
 const Chess = (() => {
   const FILES = 'abcdefgh';
@@ -2683,7 +2683,7 @@ const Dict = {
     $('vStart').style.display = 'none';
     this.started = true; this.on = true;
     Clock.turn = 'w'; Clock.go(); Clock.render();
-    this.msg = '🎤 Sag den Zug an, z. B. „e4“ oder „Springer f3“.';
+    this.msg = 'Sag den Zug an, z. B. „e4“ oder „Springer f3“.';
     this.render();
     this.say('Los gehts');
   },
@@ -2700,7 +2700,7 @@ const Dict = {
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const r = e.results[i];
         if (r.isFinal) this.heard([...r].map(a => a.transcript));
-        else { this.msg = `🎤 „${esc(r[0].transcript)}“ …`; this.renderStat(); }
+        else { this.msg = `„${esc(r[0].transcript)}“ …`; this.renderStat(); }
       }
     };
     rec.onerror = e => {
@@ -2813,7 +2813,7 @@ const Dict = {
   },
   onFlag(side) {
     this.stop();
-    this.msg = `⏱ Zeit abgelaufen: ${side === 'w' ? 'Weiß' : 'Schwarz'}`; this.renderStat();
+    this.msg = `Zeit abgelaufen: ${side === 'w' ? 'Weiß' : 'Schwarz'}`; this.renderStat();
     this.say('Zeit abgelaufen.');
     setTimeout(() => openResult(), 900);
   },
@@ -2913,16 +2913,16 @@ $('vTest').onclick = () => {
   try { rec = new SR(); } catch (e) { out.textContent = `✗ Spracherkennung konnte nicht gestartet werden (${mode}): ${e.message}`; return; }
   rec.lang = 'de-DE'; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 3;
   let heard = '', alts = [];
-  rec.onstart = () => { out.textContent = `🎤 Hört zu … sag z. B. „Springer d4“ (${mode})`; $('vTest').textContent = 'Stopp'; };
+  rec.onstart = () => { out.textContent = `Hört zu … sag z. B. „Springer d4“ (${mode})`; $('vTest').textContent = 'Stopp'; };
   rec.onresult = e => {
     const r = e.results[e.results.length - 1];
     heard = r[0].transcript;
     if (r.isFinal) alts = [...r].map(a => a.transcript);
-    out.textContent = `🎤 „${heard}“`;
+    out.textContent = `„${heard}“`;
   };
   rec.onerror = e => { out.textContent = `✗ Fehler: ${e.error}${e.error === 'not-allowed' ? ' – Mikrofon oder Spracherkennung nicht erlaubt' : e.error === 'service-not-allowed' ? ' – in dieser Umgebung gesperrt (evtl. nur in Safari möglich) oder Diktieren in den iPhone-Einstellungen aus' : ''} (${mode})`; };
   rec.onend = () => {
-    vRec = null; $('vTest').textContent = '🎤 Spracheingabe testen';
+    vRec = null; $('vTest').textContent = 'Spracheingabe testen';
     if (heard) out.textContent = `✓ Funktioniert (${mode})!\nErkannt: „${heard}“${alts.length > 1 ? `\nAlternativen: ${alts.slice(1).map(a => `„${a}“`).join(', ')}` : ''}`;
   };
   vRec = rec;
@@ -3270,7 +3270,7 @@ function renderBilanz() {
   const last = list.slice(0, 10);
   parts.push(`Letzte ${last.length}: ${sc(last)}`);
   let n = 0; while (n < list.length && list[n].res === list[0].res) n++;
-  if (n >= 2 && list[0].res !== 'd') parts.push(`Serie: ${n} ${list[0].res === 'w' ? 'Siege' : 'Niederlagen'} in Folge ${list[0].res === 'w' ? '🔥' : ''}`);
+  if (n >= 2 && list[0].res !== 'd') parts.push(`Serie: ${n} ${list[0].res === 'w' ? 'Siege' : 'Niederlagen'} in Folge`);
   el.innerHTML = parts.map(p => `<div>${p}</div>`).join('');
 }
 
