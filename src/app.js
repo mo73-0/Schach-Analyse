@@ -1237,7 +1237,7 @@ function openModal(id) { $(id).classList.add('open'); }
 // so the body is pinned with position:fixed and the scroll position restored afterwards).
 let scrollLockY = null;
 function syncScrollLock() {
-  const open = !!document.querySelector('.modal.open, #anaov.open');
+  const open = !!document.querySelector('.modal.open, #anaov.open, #clockView.open');
   const b = document.body.style;
   if (open && scrollLockY == null) {
     scrollLockY = window.scrollY;
@@ -1438,6 +1438,95 @@ $('accInfo').onclick = e => {
 $('bHomePgn').onclick = openPgnModal;
 $('bHomeSaved').onclick = () => { renderGameList(); openModal('mSaved'); };
 $('bHomeFree').onclick = () => freeBoard();
+
+// ---------- chess clock (for over-the-board games) ----------
+const CLOCK_PRESETS = [[1, 0, 'Bullet'], [2, 1, 'Bullet'], [3, 0, 'Blitz'], [3, 2, 'Blitz'], [5, 0, 'Blitz'], [5, 3, 'Blitz'],
+  [10, 0, 'Schnell'], [10, 5, 'Schnell'], [15, 10, 'Schnell'], [30, 0, 'Klassisch'], [60, 0, 'Klassisch'], [90, 30, 'Klassisch']];
+const Clock = {
+  tc: null, left: { w: 0, b: 0 }, moves: { w: 0, b: 0 }, turn: null, running: false, last: 0, timer: null, flag: null, lock: null, sound: true,
+  open() {
+    const tc = S.clockTC || [5, 0];
+    $('clkMin').value = tc[0]; $('clkInc').value = tc[1];
+    this.renderPresets();
+    $('clkSetup').style.display = ''; $('clkPlay').style.display = 'none';
+    $('clockView').classList.add('open');
+  },
+  close() { this.stop(); this.releaseLock(); $('clockView').classList.remove('open'); },
+  renderPresets() {
+    const m = +$('clkMin').value, i = +$('clkInc').value;
+    $('clkPresets').innerHTML = CLOCK_PRESETS.map(([a, b, n]) => `<button class="clkpre${a === m && b === i ? ' on' : ''}" data-tc="${a},${b}">${a} + ${b}<small>${n}</small></button>`).join('');
+  },
+  start() {
+    const m = Math.max(0, Math.min(180, +$('clkMin').value || 0)), inc = Math.max(0, Math.min(60, +$('clkInc').value || 0));
+    if (!m && !inc) return;
+    S.clockTC = [m, inc]; saveSettings();
+    this.tc = { ms: m * 60000 || 10000, inc: inc * 1000 };
+    this.left = { w: this.tc.ms, b: this.tc.ms }; this.moves = { w: 0, b: 0 };
+    this.turn = null; this.running = false; this.flag = null;
+    $('clkSetup').style.display = 'none'; $('clkPlay').style.display = '';
+    $('clkPause').textContent = 'Pause';
+    this.requestLock();
+    this.render();
+  },
+  // tap on a half = that player finished his move
+  press(side) {
+    if (this.flag) return;
+    if (this.turn && this.turn !== side) return;          // only the player whose clock runs can press
+    if (!this.turn) { this.turn = side === 'b' ? 'w' : 'b'; this.go(); this.click(); this.render(); return; } // first tap starts the other clock
+    if (!this.running) return;
+    this.tick();
+    this.left[side] += this.tc.inc; this.moves[side]++;
+    this.turn = side === 'w' ? 'b' : 'w';
+    this.click(); this.render();
+  },
+  go() { this.running = true; this.last = performance.now(); clearInterval(this.timer); this.timer = setInterval(() => { this.tick(); this.render(); }, 100); },
+  stop() { this.tick(); this.running = false; clearInterval(this.timer); this.timer = null; },
+  tick() {
+    if (!this.running || !this.turn) return;
+    const now = performance.now();
+    this.left[this.turn] -= now - this.last; this.last = now;
+    if (this.left[this.turn] <= 0) {
+      this.left[this.turn] = 0; this.flag = this.turn; this.running = false; clearInterval(this.timer);
+      if (this.sound) { Sound.play('capture'); setTimeout(() => Sound.play('capture'), 250); }
+    }
+  },
+  pause() {
+    if (this.flag || !this.turn) return;
+    if (this.running) { this.stop(); $('clkPause').textContent = 'Weiter'; } else { this.go(); $('clkPause').textContent = 'Pause'; }
+    this.render();
+  },
+  click() { if (this.sound && S.sound) Sound.play('move'); },
+  fmt(ms) {
+    if (ms < 10000) return (Math.floor(ms / 100) / 10).toFixed(1);
+    const s = Math.ceil(ms / 1000), h = Math.floor(s / 3600), mm = Math.floor((s % 3600) / 60), ss = s % 60;
+    return h ? `${h}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}` : `${mm}:${String(ss).padStart(2, '0')}`;
+  },
+  render() {
+    for (const [side, id] of [['w', 'clkW'], ['b', 'clkB']]) {
+      const el = $(id), ms = this.left[side];
+      el.querySelector('.clkt').textContent = this.fmt(ms);
+      el.querySelector('.clkm').textContent = this.flag === side ? 'Zeit abgelaufen' : !this.turn ? (side === 'b' ? 'Schwarz – tippen zum Start' : 'Weiß') : `${side === 'w' ? 'Weiß' : 'Schwarz'} · ${this.moves[side]} ${this.moves[side] === 1 ? 'Zug' : 'Züge'}${this.turn === side && !this.running && !this.flag ? ' · Pause' : ''}`;
+      el.className = 'clkside ' + (id === 'clkB' ? 'top' : 'bottom') + (this.flag === side ? ' flag' : this.turn === side && this.running ? ' run' : ' wait') + (ms < 20000 ? ' low' : '');
+    }
+    $('clkSound').textContent = this.sound ? 'Ton an' : 'Ton aus';
+  },
+  // keep the screen on while the clock is in use (iOS 16.4+)
+  async requestLock() { try { if ('wakeLock' in navigator) this.lock = await navigator.wakeLock.request('screen'); } catch (e) { /* ignore */ } },
+  releaseLock() { try { if (this.lock) this.lock.release(); } catch (e) { /* ignore */ } this.lock = null; },
+};
+$('bHomeClock').onclick = () => Clock.open();
+$('clkClose').onclick = () => Clock.close();
+$('clkExit').onclick = () => { if (Clock.turn && !Clock.flag && !confirmClock('Uhr beenden?')) return; Clock.close(); };
+$('clkReset').onclick = () => { if (Clock.turn && !Clock.flag && !confirmClock('Neue Partie? Die laufende Zeit wird zurückgesetzt.')) return; Clock.stop(); Clock.open(); };
+$('clkPause').onclick = () => Clock.pause();
+$('clkSound').onclick = () => { Clock.sound = !Clock.sound; Clock.render(); };
+$('clkStart').onclick = () => { Sound.unlock(); Clock.start(); };
+$('clkPresets').addEventListener('click', e => { const b = e.target.closest('[data-tc]'); if (!b) return; const [m, i] = b.dataset.tc.split(','); $('clkMin').value = m; $('clkInc').value = i; Clock.renderPresets(); });
+['clkMin', 'clkInc'].forEach(id => $(id).addEventListener('input', () => Clock.renderPresets()));
+$('clkW').addEventListener('pointerdown', e => { e.preventDefault(); Clock.press('w'); });
+$('clkB').addEventListener('pointerdown', e => { e.preventDefault(); Clock.press('b'); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && $('clockView').classList.contains('open') && $('clkPlay').style.display !== 'none') Clock.requestLock(); });
+function confirmClock(msg) { return window.confirm(msg); }
 $('btnHome').onclick = () => showView('home');
 {
   $('bPaste').onclick = async () => {

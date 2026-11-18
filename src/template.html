@@ -128,6 +128,23 @@ textarea{width:100%;min-height:140px;background:#1e1d1b;color:#fff;border:1px so
 .glist .g .sub{color:var(--muted);font-size:12px;font-weight:400}
 .set{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid #3a3733;gap:10px}
 .set label{font-weight:600}.set small{display:block;color:var(--muted);font-weight:400}
+.clkpresets{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+#clockView{position:fixed;inset:0;z-index:60;background:var(--bg);display:none;padding:calc(env(safe-area-inset-top) + 12px) 14px calc(env(safe-area-inset-bottom) + 12px);overflow:auto}
+#clockView.open{display:block}
+#clkSetup h2{display:flex;justify-content:space-between;align-items:center;margin:0}
+.clkpre{background:var(--panel2);border:2px solid transparent;border-radius:10px;padding:10px 4px;color:#fff;font-weight:700;font-size:16px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.clkpre small{font-size:11px;color:var(--muted);font-weight:500}.clkpre.on{border-color:var(--accent)}
+.clkcustom{display:flex;gap:12px;margin:6px 0 14px}.clkcustom label{flex:1;font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.clkcustom input{background:var(--panel2);border:0;border-radius:8px;color:#fff;font-size:18px;padding:10px;width:100%}
+#clkStart{width:100%;padding:14px;font-size:17px;margin-bottom:10px}
+#clkPlay{position:fixed;inset:0;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top) + 6px) 8px calc(env(safe-area-inset-bottom) + 8px);gap:8px;background:var(--bg)}
+.clkside{flex:1;border:0;border-radius:18px;background:#3a3733;color:#ddd;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;touch-action:manipulation;-webkit-user-select:none;user-select:none;transition:background .15s}
+.clkside.top{transform:rotate(180deg)}
+.clkside .clkt{font-size:clamp(56px,20vw,110px);font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.clkside .clkm{font-size:14px;color:inherit;opacity:.7}
+.clkside.run{background:#81b64c;color:#fff}.clkside.low.run{background:#e0a030}.clkside.flag{background:#d23c3c;color:#fff}
+.clkside.wait{opacity:.85}
+.clkbar{display:flex;gap:8px;justify-content:center}.clkbar .iconbtn{flex:1;max-width:110px}
 .seth{margin:18px 0 4px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .setblk{padding:10px 0;border-top:1px solid #3a3733}.setblk>label{font-weight:600;display:block;margin-bottom:8px}
 .setrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:10px}.setrow small{color:var(--muted);font-size:12px;flex:1;min-width:140px}
@@ -280,7 +297,7 @@ body:not([data-view=home]) header h1 .t{display:none}
     <div class="card homecard" id="trainHome" style="display:none"></div>
     <div class="card homecard" id="trendCard" style="display:none"></div>
     <div class="card homecard" id="openCard" style="display:none"></div>
-    <div class="row homeact"><button class="iconbtn" id="bHomePgn">PGN einfügen</button><button class="iconbtn" id="bHomeSaved">Gespeicherte Analysen</button><button class="iconbtn" id="bHomeFree">Analysebrett</button></div>
+    <div class="row homeact"><button class="iconbtn" id="bHomePgn">PGN einfügen</button><button class="iconbtn" id="bHomeSaved">Gespeicherte Analysen</button><button class="iconbtn" id="bHomeFree">Analysebrett</button><button class="iconbtn" id="bHomeClock">Schachuhr</button></div>
   </div>
   <div id="viewReview" style="display:none"></div>
   <div class="layout" id="viewBoard" style="display:none">
@@ -337,6 +354,20 @@ body:not([data-view=home]) header h1 .t{display:none}
   <div class="adv"><button class="iconbtn" id="bCalib" style="width:100%">Kalibrierungsdaten exportieren</button><div class="hint" id="calibMsg"></div></div>
 </div></div>
 
+<div id="clockView">
+  <div id="clkSetup">
+    <h2>Schachuhr <button class="iconbtn" id="clkClose">✕</button></h2>
+    <div class="clkpresets" id="clkPresets"></div>
+    <div class="clkcustom"><label>Minuten <input type="number" id="clkMin" min="0" max="180" step="1" inputmode="numeric"></label><label>+ Sekunden pro Zug <input type="number" id="clkInc" min="0" max="60" step="1" inputmode="numeric"></label></div>
+    <button class="primary" id="clkStart">Uhr starten</button>
+    <div class="hint">Leg das Handy zwischen euch. Wer am Zug war, tippt nach seinem Zug auf seine Hälfte. Schwarz tippt zuerst, damit die Uhr von Weiß startet.</div>
+  </div>
+  <div id="clkPlay" style="display:none">
+    <button class="clkside top" id="clkB"><span class="clkt"></span><span class="clkm"></span></button>
+    <div class="clkbar"><button class="iconbtn" id="clkPause">Pause</button><button class="iconbtn" id="clkReset">Neu</button><button class="iconbtn" id="clkSound">Ton</button><button class="iconbtn" id="clkExit">✕</button></div>
+    <button class="clkside bottom" id="clkW"><span class="clkt"></span><span class="clkm"></span></button>
+  </div>
+</div>
 <div class="modal" id="mSettings"><div class="sheet">
   <h2>Einstellungen <button class="iconbtn" data-close>✕</button></h2>
   <div id="setList"></div>

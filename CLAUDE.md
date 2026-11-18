@@ -137,3 +137,7 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
   geprüft 17.11.2026, nicht-freie bzw. unklare Sets bewusst ausgelassen).
 - Töne: `S.soundSet` = wood/click/soft/digital/glass (im Code synthetisiert, `Synth`) oder custom (eigene Dateien wie bisher).
   Bestehende Nutzer mit eigenen Tönen starten mit „custom“. Beim Umschalten kurze Hörprobe (Zug + Schlag).
+- Schachuhr (Startbildschirm → „Schachuhr“, `Clock` in `app.js`, Vollbild `#clockView`): Vorgaben 1+0 … 90+30 oder eigene
+  Minuten + Inkrement (zuletzt genutzte in `S.clockTC`). Zwei Hälften, obere um 180° gedreht; wer zieht, tippt seine Hälfte
+  (`pointerdown`), Schwarz tippt zuerst → Uhr von Weiß läuft. Pause/Weiter, Neu, Ton an/aus, Zugzähler, unter 20 s orange,
+  unter 10 s Zehntel, Zeitablauf rot + Ton. Bildschirm bleibt an (Wake Lock, iOS 16.4+). Zeit läuft über `performance.now()`.
