@@ -141,3 +141,6 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
   Minuten + Inkrement (zuletzt genutzte in `S.clockTC`). Zwei Hälften, obere um 180° gedreht; wer zieht, tippt seine Hälfte
   (`pointerdown`), Schwarz tippt zuerst → Uhr von Weiß läuft. Pause/Weiter, Neu, Ton an/aus, Zugzähler, unter 20 s orange,
   unter 10 s Zehntel, Zeitablauf rot + Ton. Bildschirm bleibt an (Wake Lock, iOS 16.4+). Zeit läuft über `performance.now()`.
+- Diktierfunktion (geplant, Schritt 1): In der Schachuhr-Einstellung Knopf „Spracheingabe testen“ (`#vTest`, Web Speech API
+  `webkitSpeechRecognition`, de-DE) – klärt, ob Spracherkennung in der Homescreen-App auf dem iPhone geht (laut WebKit
+  früher nur in Safari). Plan danach: Zug ansagen → Abgleich mit legalen Zügen → Minibrett zur Kontrolle → am Ende PGN + Analyse.

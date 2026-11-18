@@ -131,6 +131,7 @@ textarea{width:100%;min-height:140px;background:#1e1d1b;color:#fff;border:1px so
 .glist .g .sub{color:var(--muted);font-size:12px;font-weight:400}
 .set{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid #3a3733;gap:10px}
 .set label{font-weight:600}.set small{display:block;color:var(--muted);font-weight:400}
+.voicetest{margin:6px 0 10px}.voicetest .iconbtn{width:100%}#vOut{white-space:pre-line}
 .clkpresets{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
 #clockView{position:fixed;inset:0;z-index:60;background:var(--bg);display:none;padding:calc(env(safe-area-inset-top) + 12px) 14px calc(env(safe-area-inset-bottom) + 12px);overflow:auto}
 #clockView.open{display:block}
@@ -363,6 +364,7 @@ body:not([data-view=home]) header h1 .t{display:none}
     <div class="clkpresets" id="clkPresets"></div>
     <div class="clkcustom"><label>Minuten <input type="number" id="clkMin" min="0" max="180" step="1" inputmode="numeric"></label><label>+ Sekunden pro Zug <input type="number" id="clkInc" min="0" max="60" step="1" inputmode="numeric"></label></div>
     <button class="primary" id="clkStart">Uhr starten</button>
+    <div class="voicetest"><button class="iconbtn" id="vTest">🎤 Spracheingabe testen</button><div class="hint" id="vOut"></div></div>
     <div class="hint">Leg das Handy zwischen euch. Wer am Zug war, tippt nach seinem Zug auf seine Hälfte. Schwarz tippt zuerst, damit die Uhr von Weiß startet.</div>
   </div>
   <div id="clkPlay" style="display:none">
@@ -382,7 +384,7 @@ body:not([data-view=home]) header h1 .t{display:none}
   </div>
 </div></div>
 
-<script>window.SA_VERSION="4356fb32";window.SA_BUILT="18.11.2026 02:50";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
+<script>window.SA_VERSION="b7bc443d";window.SA_BUILT="18.11.2026 02:57";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
 <script>// Minimal chess core: board, legal moves, SAN, FEN, PGN. Square 0 = a8, 63 = h1.
 const Chess = (() => {
   const FILES = 'abcdefgh';
@@ -2491,6 +2493,34 @@ $('clkW').addEventListener('pointerdown', e => { e.preventDefault(); Clock.press
 $('clkB').addEventListener('pointerdown', e => { e.preventDefault(); Clock.press('b'); });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && $('clockView').classList.contains('open') && $('clkPlay').style.display !== 'none') Clock.requestLock(); });
 function confirmClock(msg) { return window.confirm(msg); }
+
+// Test: does speech recognition work here (Safari vs. home-screen app)? Basis for dictating moves at the clock.
+let vRec = null;
+$('vTest').onclick = () => {
+  const out = $('vOut');
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const mode = (window.navigator.standalone || matchMedia('(display-mode: standalone)').matches) ? 'Homescreen-App' : 'Browser';
+  if (vRec) { try { vRec.stop(); } catch (e) { /* ignore */ } return; }
+  if (!SR) { out.textContent = `✗ Spracherkennung ist hier nicht verfügbar (${mode}).`; return; }
+  let rec;
+  try { rec = new SR(); } catch (e) { out.textContent = `✗ Spracherkennung konnte nicht gestartet werden (${mode}): ${e.message}`; return; }
+  rec.lang = 'de-DE'; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 3;
+  let heard = '', alts = [];
+  rec.onstart = () => { out.textContent = `🎤 Hört zu … sag z. B. „Springer d4“ (${mode})`; $('vTest').textContent = 'Stopp'; };
+  rec.onresult = e => {
+    const r = e.results[e.results.length - 1];
+    heard = r[0].transcript;
+    if (r.isFinal) alts = [...r].map(a => a.transcript);
+    out.textContent = `🎤 „${heard}“`;
+  };
+  rec.onerror = e => { out.textContent = `✗ Fehler: ${e.error}${e.error === 'not-allowed' ? ' – Mikrofon oder Spracherkennung nicht erlaubt' : e.error === 'service-not-allowed' ? ' – in dieser Umgebung gesperrt (evtl. nur in Safari möglich) oder Diktieren in den iPhone-Einstellungen aus' : ''} (${mode})`; };
+  rec.onend = () => {
+    vRec = null; $('vTest').textContent = '🎤 Spracheingabe testen';
+    if (heard) out.textContent = `✓ Funktioniert (${mode})!\nErkannt: „${heard}“${alts.length > 1 ? `\nAlternativen: ${alts.slice(1).map(a => `„${a}“`).join(', ')}` : ''}`;
+  };
+  vRec = rec;
+  try { rec.start(); } catch (e) { vRec = null; out.textContent = `✗ Start fehlgeschlagen (${mode}): ${e.message}`; }
+};
 $('btnHome').onclick = () => showView('home');
 {
   $('bPaste').onclick = async () => {

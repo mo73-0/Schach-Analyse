@@ -1527,6 +1527,34 @@ $('clkW').addEventListener('pointerdown', e => { e.preventDefault(); Clock.press
 $('clkB').addEventListener('pointerdown', e => { e.preventDefault(); Clock.press('b'); });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && $('clockView').classList.contains('open') && $('clkPlay').style.display !== 'none') Clock.requestLock(); });
 function confirmClock(msg) { return window.confirm(msg); }
+
+// Test: does speech recognition work here (Safari vs. home-screen app)? Basis for dictating moves at the clock.
+let vRec = null;
+$('vTest').onclick = () => {
+  const out = $('vOut');
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const mode = (window.navigator.standalone || matchMedia('(display-mode: standalone)').matches) ? 'Homescreen-App' : 'Browser';
+  if (vRec) { try { vRec.stop(); } catch (e) { /* ignore */ } return; }
+  if (!SR) { out.textContent = `✗ Spracherkennung ist hier nicht verfügbar (${mode}).`; return; }
+  let rec;
+  try { rec = new SR(); } catch (e) { out.textContent = `✗ Spracherkennung konnte nicht gestartet werden (${mode}): ${e.message}`; return; }
+  rec.lang = 'de-DE'; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 3;
+  let heard = '', alts = [];
+  rec.onstart = () => { out.textContent = `🎤 Hört zu … sag z. B. „Springer d4“ (${mode})`; $('vTest').textContent = 'Stopp'; };
+  rec.onresult = e => {
+    const r = e.results[e.results.length - 1];
+    heard = r[0].transcript;
+    if (r.isFinal) alts = [...r].map(a => a.transcript);
+    out.textContent = `🎤 „${heard}“`;
+  };
+  rec.onerror = e => { out.textContent = `✗ Fehler: ${e.error}${e.error === 'not-allowed' ? ' – Mikrofon oder Spracherkennung nicht erlaubt' : e.error === 'service-not-allowed' ? ' – in dieser Umgebung gesperrt (evtl. nur in Safari möglich) oder Diktieren in den iPhone-Einstellungen aus' : ''} (${mode})`; };
+  rec.onend = () => {
+    vRec = null; $('vTest').textContent = '🎤 Spracheingabe testen';
+    if (heard) out.textContent = `✓ Funktioniert (${mode})!\nErkannt: „${heard}“${alts.length > 1 ? `\nAlternativen: ${alts.slice(1).map(a => `„${a}“`).join(', ')}` : ''}`;
+  };
+  vRec = rec;
+  try { rec.start(); } catch (e) { vRec = null; out.textContent = `✗ Start fehlgeschlagen (${mode}): ${e.message}`; }
+};
 $('btnHome').onclick = () => showView('home');
 {
   $('bPaste').onclick = async () => {
