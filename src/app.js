@@ -1445,13 +1445,19 @@ const CLOCK_PRESETS = [[1, 0, 'Bullet'], [2, 1, 'Bullet'], [3, 0, 'Blitz'], [3, 
 const Clock = {
   tc: null, left: { w: 0, b: 0 }, moves: { w: 0, b: 0 }, turn: null, running: false, last: 0, timer: null, flag: null, lock: null, sound: true,
   open() {
+    Dict.stop();
     const tc = S.clockTC || [5, 0];
     $('clkMin').value = tc[0]; $('clkInc').value = tc[1];
+    const nm = S.clockNames || [S.ccUser || S.liUser || '', ''];
+    $('clkWName').value = nm[0] || ''; $('clkBName').value = nm[1] || '';
+    $('clkDict').classList.toggle('on', !!S.clockDict);
+    $('clkNames').style.display = S.clockDict ? '' : 'none';
+    $('dRes').style.display = 'none';
     this.renderPresets();
     $('clkSetup').style.display = ''; $('clkPlay').style.display = 'none';
     $('clockView').classList.add('open');
   },
-  close() { this.stop(); this.releaseLock(); $('clockView').classList.remove('open'); },
+  close() { this.stop(); this.releaseLock(); Dict.stop(); $('clockView').classList.remove('open'); },
   renderPresets() {
     const m = +$('clkMin').value, i = +$('clkInc').value;
     $('clkPresets').innerHTML = CLOCK_PRESETS.map(([a, b, n]) => `<button class="clkpre${a === m && b === i ? ' on' : ''}" data-tc="${a},${b}">${a} + ${b}<small>${n}</small></button>`).join('');
@@ -1465,6 +1471,9 @@ const Clock = {
     this.turn = null; this.running = false; this.flag = null;
     $('clkSetup').style.display = 'none'; $('clkPlay').style.display = '';
     $('clkPause').textContent = 'Pause';
+    S.clockNames = [$('clkWName').value.trim(), $('clkBName').value.trim()]; saveSettings();
+    $('dictBox').style.display = S.clockDict ? '' : 'none';
+    if (S.clockDict) { this.sound = false; Dict.start(); } // iOS: sound playback can block the microphone
     this.requestLock();
     this.render();
   },
@@ -1514,6 +1523,130 @@ const Clock = {
   async requestLock() { try { if ('wakeLock' in navigator) this.lock = await navigator.wakeLock.request('screen'); } catch (e) { /* ignore */ } },
   releaseLock() { try { if (this.lock) this.lock.release(); } catch (e) { /* ignore */ } this.lock = null; },
 };
+// ---------- dictation: moves are spoken at the clock and collected into a game ----------
+const Dict = {
+  on: false, rec: null, pos: null, moves: [], sel: null, opts: [], err: null, msg: '',
+  start() {
+    this.pos = C.parseFen(C.START); this.moves = []; this.sel = null; this.opts = []; this.on = true;
+    this.msg = '🎤 Sag den Zug an, z. B. „e4“ oder „Springer f3“.';
+    this.render(); this.listen();
+  },
+  stop() { this.on = false; const r = this.rec; this.rec = null; try { if (r) r.abort(); } catch (e) { /* ignore */ } },
+  listen() {
+    if (!this.on || this.rec) return;
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { this.msg = '✗ Spracherkennung nicht verfügbar – Züge auf dem kleinen Brett antippen.'; this.render(); return; }
+    const rec = new SR();
+    rec.lang = 'de-DE'; rec.interimResults = true; rec.continuous = true; rec.maxAlternatives = 5;
+    rec.onresult = e => {
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const r = e.results[i];
+        if (r.isFinal) this.heard([...r].map(a => a.transcript));
+        else { this.msg = `🎤 „${r[0].transcript}“ …`; this.renderStat(); }
+      }
+    };
+    rec.onerror = e => {
+      this.err = e.error;
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+        this.on = false; this.msg = '✗ Mikrofon/Spracherkennung nicht erlaubt – Züge auf dem kleinen Brett antippen.'; this.render();
+      }
+    };
+    rec.onend = () => {
+      if (this.rec === rec) this.rec = null;
+      if (this.on) setTimeout(() => this.listen(), this.err && this.err !== 'no-speech' ? 600 : 80); // keep listening
+      this.err = null;
+    };
+    this.rec = rec;
+    try { rec.start(); } catch (e) { this.rec = null; }
+  },
+  heard(alts) {
+    let ambiguous = null;
+    for (const a of alts) {
+      const res = Voice.match(a, this.pos);
+      if (res.undo) { this.undo(); return; }
+      if (res.moves.length === 1) { this.apply(res.moves[0]); return; }
+      if (res.moves.length > 1 && !ambiguous) ambiguous = res.moves;
+    }
+    if (ambiguous) {
+      this.opts = ambiguous;
+      this.msg = `Welcher Zug? (gehört: „${alts[0]}“)`;
+    } else this.msg = `✗ Nicht verstanden: „${alts[0]}“ – nochmal sagen oder antippen.`;
+    this.render();
+  },
+  apply(m) {
+    const san = C.san(this.pos, m), n = this.pos.full, white = this.pos.turn === 'w';
+    this.moves.push({ uci: C.uci(m), san, from: m.from, to: m.to });
+    this.pos = C.make(this.pos, m); this.sel = null; this.opts = [];
+    this.msg = `✓ <b>${n}${white ? '.' : '…'} ${esc(san)}</b>`;
+    const st = C.status(this.pos);
+    if (st === 'mate') this.msg += ' – Schachmatt!'; else if (st === 'stalemate') this.msg += ' – Patt.';
+    this.render();
+  },
+  undo() {
+    if (!this.moves.length) return;
+    const last = this.moves.pop();
+    let p = C.parseFen(C.START);
+    for (const mv of this.moves) p = C.make(p, C.legal(p).find(x => C.uci(x) === mv.uci));
+    this.pos = p; this.sel = null; this.opts = [];
+    this.msg = `↶ ${esc(last.san)} zurückgenommen`;
+    this.render();
+  },
+  tap(s) {
+    const legal = C.legal(this.pos);
+    if (this.sel != null) {
+      const m = legal.filter(x => x.from === this.sel && x.to === s);
+      if (m.length) { this.apply(m.find(x => !x.promo || x.promo === 'q') || m[0]); return; }
+    }
+    this.sel = legal.some(x => x.from === s) ? s : null;
+    this.render();
+  },
+  pgn(result) {
+    const d = new Date(), date = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+    const [w, b] = S.clockNames || ['', ''];
+    const tc = Clock.tc ? `${Math.round(Clock.tc.ms / 1000)}+${Math.round(Clock.tc.inc / 1000)}` : '-';
+    let body = '';
+    this.moves.forEach((m, i) => { body += (i % 2 === 0 ? `${i / 2 + 1}. ` : '') + m.san + ' '; });
+    return `[Event "Partie am Brett"]\n[Site "Zugzwang"]\n[Date "${date}"]\n[White "${w || 'Weiß'}"]\n[Black "${b || 'Schwarz'}"]\n[Result "${result}"]\n[TimeControl "${tc}"]\n\n${body}${result}\n`;
+  },
+  renderStat() { $('dStat').innerHTML = this.msg + (this.on ? '' : ''); },
+  render() {
+    if (!this.pos) return;
+    const last = this.moves[this.moves.length - 1];
+    let h = '';
+    for (let s = 0; s < 64; s++) {
+      const r = s >> 3, f = s & 7, light = (r + f) % 2 === 0, pc = this.pos.b[s];
+      const [l, dk] = S.theme === 'custom' ? [S.boardLight, S.boardDark] : (THEMES[S.theme] || THEMES.green);
+      h += `<div data-ds="${s}" class="${s === this.sel ? 'sel' : ''}${last && (s === last.from || s === last.to) ? ' lm' : ''}" style="background-color:${light ? l : dk}${pc ? `;background-image:url('${pieceUrl(pc)}')` : ''}"></div>`;
+    }
+    $('dBoard').innerHTML = h;
+    this.renderStat();
+    $('dOpts').innerHTML = this.opts.map((m, i) => `<button class="iconbtn" data-dopt="${i}">${esc(C.san(this.pos, m))}</button>`).join('');
+    $('dUndo').disabled = !this.moves.length;
+  },
+};
+$('dBoard').addEventListener('pointerdown', e => { const d = e.target.closest('[data-ds]'); if (d) { e.preventDefault(); Dict.tap(+d.dataset.ds); } });
+$('dOpts').addEventListener('click', e => { const b = e.target.closest('[data-dopt]'); if (b) Dict.apply(Dict.opts[+b.dataset.dopt]); });
+$('dUndo').onclick = () => Dict.undo();
+$('dEnd').onclick = () => {
+  if (!Dict.moves.length) { Dict.msg = 'Noch keine Züge erfasst.'; Dict.render(); return; }
+  Clock.stop();
+  const st = C.status(Dict.pos);
+  // preselect the obvious result
+  document.querySelectorAll('#dRes [data-res]').forEach(b => b.classList.remove('primary'));
+  const guess = st === 'mate' ? (Dict.pos.turn === 'w' ? '0-1' : '1-0') : st === 'stalemate' ? '1/2-1/2' : Clock.flag ? (Clock.flag === 'w' ? '0-1' : '1-0') : null;
+  if (guess) document.querySelector(`#dRes [data-res="${guess}"]`).classList.add('primary');
+  $('dRes').style.display = '';
+};
+$('dRes').addEventListener('click', e => {
+  const b = e.target.closest('[data-res]');
+  if (!b) return;
+  $('dRes').style.display = 'none';
+  if (b.dataset.res === 'cancel') { if (Clock.turn && !Clock.flag) Clock.go(); return; }
+  const pgn = Dict.pgn(b.dataset.res);
+  Clock.close();
+  importOne(pgn);
+});
+$('clkDict').onclick = () => { S.clockDict = !S.clockDict; saveSettings(); $('clkDict').classList.toggle('on', S.clockDict); $('clkNames').style.display = S.clockDict ? '' : 'none'; };
 $('bHomeClock').onclick = () => Clock.open();
 $('clkClose').onclick = () => Clock.close();
 $('clkExit').onclick = () => { if (Clock.turn && !Clock.flag && !confirmClock('Uhr beenden?')) return; Clock.close(); };
