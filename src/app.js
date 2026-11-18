@@ -1902,12 +1902,19 @@ $('fileIn').onchange = e => {
 function renderGameList() {
   const list = storedGames();
   const el = $('glist');
+  $('bDelAll').style.display = list.length ? '' : 'none';
   if (!list.length) { el.innerHTML = '<div class="hint">Noch keine Partien analysiert.</div>'; return; }
   el.innerHTML = list.map(g => {
     const h = g.h || {};
     return `<div class="g" data-id="${esc(g.id)}"><div class="nm">${esc(h.White || '?')} – ${esc(h.Black || '?')} <span class="sub">${esc(h.Result || '')}</span><div class="sub">${g.ev ? 'analysiert' : 'nicht fertig analysiert'} ${g.date ? timeAgo(g.date) : ''}</div></div><button class="iconbtn" data-del="${esc(g.id)}" aria-label="Löschen">✕</button></div>`;
   }).join('');
 }
+$('bDelAll').onclick = () => {
+  const n = storedGames().length;
+  if (!n || !window.confirm(`Alle ${n} gespeicherten Analysen löschen? Das lässt sich nicht rückgängig machen.`)) return;
+  setGames([]);
+  renderGameList(); renderAccList(); renderHomeExtras();
+};
 $('glist').onclick = e => {
   const del = e.target.closest('[data-del]');
   if (del) {

@@ -78,6 +78,7 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
   Export (s. u.) + neue Screenshots vom Nutzer anfordern. Gespeicherte Statistiken tragen `st.v = 6` (v3 gefilterte, v4 mehrzügige, v5 Aufgaben mit Vorzug `pre` und `bestCp`, v6 Theoriezüge = 100).
   Nachkalibrierung 17.11.2026 mit 3 Lichess-Partien (PGN bei chess.com eingefügt): Genauigkeit RMSE chess.com-Partien
   5,6 → 5,1, Lichess-Partien 11,1 → 8,4. Arbeitsdaten/Notizen außerhalb des Repos (`/home/claude/calib`, `li/NOTES.md`).
+- „Gespeicherte Analysen“: einzelne löschen (✕) oder „Alle Analysen löschen“ (`#bDelAll`, rot, mit Rückfrage; Trainingsfortschritt `sa_train` bleibt).
 - Kalibrierungs-Export ist dauerhaft drin (Wunsch des Nutzers, 17.11.2026): „Gespeicherte Analysen“ → unten
   „Kalibrierungsdaten exportieren“ (`#bCalib`) → `zugzwang-kalibrierung-DATUM.json` mit analysierten Partien inkl.
   Engine-Daten (`ev`, `st`, Analyse-Stärke) und den PGNs der zuletzt gespielten Partien. Der Nutzer schickt immer mal

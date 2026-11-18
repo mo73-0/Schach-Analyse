@@ -153,6 +153,7 @@ textarea{width:100%;min-height:140px;background:#1e1d1b;color:#fff;border:1px so
 .vmid{flex:1;display:flex;flex-direction:column;gap:6px;min-height:0;justify-content:center}
 .vbwrap{position:relative;width:min(100%,58vh);margin:0 auto}
 .vboard{width:100%!important;height:auto!important;aspect-ratio:1;display:grid;grid-template-columns:repeat(8,1fr);border-radius:6px;overflow:hidden;background-size:cover}
+.iconbtn.danger{color:#e6553f}
 .vboard .sq .co{font-size:clamp(10px,2.8vw,14px)}
 .vboard .sel{box-shadow:inset 0 0 0 3px #f5d000}.vboard .lm{box-shadow:inset 0 0 0 100px rgba(255,255,51,.38)}
 #vStart{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:14px 20px;font-size:17px;box-shadow:0 6px 20px rgba(0,0,0,.5)}
@@ -379,6 +380,7 @@ body:not([data-view=home]) header h1 .t{display:none}
 <div class="modal" id="mSaved"><div class="sheet">
   <h2>Gespeicherte Analysen <button class="iconbtn" data-close>✕</button></h2>
   <div class="glist" id="glist"></div>
+  <button class="iconbtn danger" id="bDelAll" style="width:100%;margin-top:10px">Alle Analysen löschen</button>
   <div class="adv"><button class="iconbtn" id="bCalib" style="width:100%">Kalibrierungsdaten exportieren</button><div class="hint" id="calibMsg"></div></div>
 </div></div>
 
@@ -427,7 +429,7 @@ body:not([data-view=home]) header h1 .t{display:none}
   </div>
 </div></div>
 
-<script>window.SA_VERSION="fee8d6bc";window.SA_BUILT="18.11.2026 03:30";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
+<script>window.SA_VERSION="c99ad6e7";window.SA_BUILT="18.11.2026 03:32";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
 <script>// Minimal chess core: board, legal moves, SAN, FEN, PGN. Square 0 = a8, 63 = h1.
 const Chess = (() => {
   const FILES = 'abcdefgh';
@@ -3015,12 +3017,19 @@ $('fileIn').onchange = e => {
 function renderGameList() {
   const list = storedGames();
   const el = $('glist');
+  $('bDelAll').style.display = list.length ? '' : 'none';
   if (!list.length) { el.innerHTML = '<div class="hint">Noch keine Partien analysiert.</div>'; return; }
   el.innerHTML = list.map(g => {
     const h = g.h || {};
     return `<div class="g" data-id="${esc(g.id)}"><div class="nm">${esc(h.White || '?')} – ${esc(h.Black || '?')} <span class="sub">${esc(h.Result || '')}</span><div class="sub">${g.ev ? 'analysiert' : 'nicht fertig analysiert'} ${g.date ? timeAgo(g.date) : ''}</div></div><button class="iconbtn" data-del="${esc(g.id)}" aria-label="Löschen">✕</button></div>`;
   }).join('');
 }
+$('bDelAll').onclick = () => {
+  const n = storedGames().length;
+  if (!n || !window.confirm(`Alle ${n} gespeicherten Analysen löschen? Das lässt sich nicht rückgängig machen.`)) return;
+  setGames([]);
+  renderGameList(); renderAccList(); renderHomeExtras();
+};
 $('glist').onclick = e => {
   const del = e.target.closest('[data-del]');
   if (del) {
