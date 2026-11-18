@@ -137,15 +137,18 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
   geprüft 17.11.2026, nicht-freie bzw. unklare Sets bewusst ausgelassen).
 - Töne: `S.soundSet` = wood/click/soft/digital/glass (im Code synthetisiert, `Synth`) oder custom (eigene Dateien wie bisher).
   Bestehende Nutzer mit eigenen Tönen starten mit „custom“. Beim Umschalten kurze Hörprobe (Zug + Schlag).
-- Schachuhr (Startbildschirm → „Schachuhr“, `Clock` in `app.js`, Vollbild `#clockView`): Vorgaben 1+0 … 90+30 oder eigene
-  Minuten + Inkrement (zuletzt genutzte in `S.clockTC`). Zwei Hälften, obere um 180° gedreht; wer zieht, tippt seine Hälfte
-  (`pointerdown`), Schwarz tippt zuerst → Uhr von Weiß läuft. Pause/Weiter, Neu, Ton an/aus, Zugzähler, unter 20 s orange,
-  unter 10 s Zehntel, Zeitablauf rot + Ton. Bildschirm bleibt an (Wake Lock, iOS 16.4+). Zeit läuft über `performance.now()`.
-- Zugdiktat an der Schachuhr (Schalter „Züge ansagen“ in der Uhr-Einstellung, `S.clockDict`, Namen `S.clockNames`):
-  `src/voice.js` (`Voice.match`) wandelt gesprochenes Deutsch („Springer f drei“, „die vier“, „Läufer schlägt e5“,
-  „kurze Rochade“, „Springer b d2“, „a8 Dame“, „zurück“) in legale Züge um (Normalisierung von Buchstaben/Zahlwörtern,
-  dann Abgleich mit `C.legal`). `Dict` in `app.js`: Web Speech API (de-DE, continuous, 5 Alternativen, Neustart bei
-  `onend`), Minibrett zur Kontrolle (Antippen = manuelle Eingabe), Auswahlknöpfe bei Mehrdeutigkeit, „↶ Zurück“.
-  „Beenden & analysieren“ → Ergebnis wählen (vorbelegt bei Matt/Patt/Zeit) → PGN → `importOne` → normale Analyse.
-  Bei Diktat Uhr-Klickton aus (iOS: Audiowiedergabe kann das Mikrofon blockieren). Spracherkennung läuft über Apples Dienst.
-  Testknopf „Spracheingabe testen“ bleibt in der Uhr-Einstellung.
+- Schachuhr: große Karte ganz unten auf dem Startbildschirm (`#bHomeClock`). Erst Auswahl (`#clkMode`): „Klassische Uhr“
+  oder „Uhr mit Spracheingabe“, dann Bedenkzeit (`#clkSetup`, Vorgaben 1+0 … 90+30 oder eigene, `S.clockTC`).
+  `Clock` in `app.js` (Zeit über `performance.now()`, Wake Lock iOS 16.4+, `Clock.moved(side)` = Zug + Inkrement + Wechsel).
+  Klassisch (`#clkPlay`): zwei große Hälften (obere 180° gedreht), Tippen auf die eigene Hälfte (`pointerdown`), Schwarz
+  tippt zuerst; Pause, Neu, Ton, Zugzähler, unter 20 s orange, unter 10 s Zehntel, Zeitablauf rot + Ton.
+- Spracheingabe-Modus (`#clkVoice`, Namen `S.clockNames`): oben/unten schmale Uhren, in der Mitte großes Brett (aktuelle
+  Brettfarbe/Figuren). „Start“ startet die Uhr von Weiß (und entsperrt die Sprachausgabe). Züge werden angesagt, die Uhr
+  wechselt nach erkanntem Zug selbst (kein Tippen). `src/voice.js` (`Voice.match`, `normalise`) wandelt gesprochenes Deutsch
+  in legale Züge („Springer f drei“, „die vier“, „Läufer schlägt e5“, „kurze Rochade“, „a8 Dame“, „zurück“).
+  `Dict` in `app.js`: Web Speech API (de-DE, continuous, 5 Alternativen, Neustart bei `onend`), Rückfragen per
+  Sprachausgabe (`speechSynthesis`, Mikrofon pausiert solange): unklar aber schachartig → „Nochmal bitte.“ / „Der Zug geht
+  nicht.“, sonstiges Gerede wird ignoriert; mehrdeutig → „Springer von F 3 oder B 1?“ und Antwort („b eins“, „b“, „f3“)
+  über `pickFrom`. Zurücknehmen gibt den Zug an den Spieler zurück. Brett antippen = manuelle Eingabe. Matt/Patt/Zeitablauf
+  → Ansage + Ergebnisdialog; „Beenden & analysieren“ → PGN → `importOne` → normale Analyse. Uhr-Klickton im Sprachmodus
+  aus (iOS: Audio kann das Mikrofon blockieren). Spracherkennung/-ausgabe über Apple. Testknopf in der Einstellung.

@@ -130,21 +130,29 @@ textarea{width:100%;min-height:140px;background:#1e1d1b;color:#fff;border:1px so
 .set label{font-weight:600}.set small{display:block;color:var(--muted);font-weight:400}
 .clknames{display:flex;gap:12px;margin:6px 0}.clknames label{flex:1;font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
 .clknames input{background:var(--panel2);border:0;border-radius:8px;color:#fff;font-size:16px;padding:9px;width:100%}
-.clkmid{display:flex;flex-direction:column;gap:8px}
-.dict{display:flex;gap:10px;align-items:stretch}
-.dboard{width:min(40vw,190px);aspect-ratio:1;display:grid;grid-template-columns:repeat(8,1fr);border-radius:6px;overflow:hidden;flex:none}
-.dboard div{position:relative;background-size:100% 100%}.dboard .sel{box-shadow:inset 0 0 0 3px #f5d000}.dboard .lm{box-shadow:inset 0 0 0 100px rgba(255,255,51,.38)}
-.dside{flex:1;display:flex;flex-direction:column;gap:6px;min-width:0}
-.dstat{font-size:14px;color:#ddd;line-height:1.35;flex:1;overflow:hidden}.dstat b{color:#fff;font-size:16px}
-.dopts{display:flex;flex-wrap:wrap;gap:6px}.dopts .iconbtn{padding:6px 10px}
-.drow{display:flex;gap:6px;flex-wrap:wrap}.drow .primary{flex:1;padding:8px 6px;font-size:13px}.drow .iconbtn{padding:8px 8px;font-size:13px}
+.dopts{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}.dopts .iconbtn{padding:6px 10px}
+.drow{display:flex;gap:6px;justify-content:center}.drow .primary{flex:1;padding:8px 6px;font-size:13px}.drow .iconbtn{padding:8px 8px;font-size:13px}
 .dres{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:70}
 .dresbox{background:var(--panel);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:8px;width:min(86vw,320px)}.dresbox h3{margin:0 0 4px}
 .voicetest{margin:6px 0 10px}.voicetest .iconbtn{width:100%}#vOut{white-space:pre-line}
 .clkpresets{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
 #clockView{position:fixed;inset:0;z-index:60;background:var(--bg);display:none;padding:calc(env(safe-area-inset-top) + 12px) 14px calc(env(safe-area-inset-bottom) + 12px);overflow:auto}
 #clockView.open{display:block}
-#clkSetup h2{display:flex;justify-content:space-between;align-items:center;margin:0}
+#clkMode h2,#clkSetup h2{display:flex;justify-content:space-between;align-items:center;margin:0 0 12px;gap:8px}#clkSetup h2 span{flex:1}
+.clkmode{display:flex;flex-direction:column;align-items:flex-start;gap:6px;width:100%;text-align:left;background:var(--panel2);border:0;border-radius:14px;padding:22px 18px;margin-bottom:12px;color:#fff}
+.clkmode b{font-size:20px}.clkmode small{font-size:14px;color:var(--muted);line-height:1.35}
+#clkVoice{position:fixed;inset:0;display:flex;flex-direction:column;gap:6px;padding:calc(env(safe-area-inset-top) + 4px) 8px calc(env(safe-area-inset-bottom) + 6px);background:var(--bg)}
+.vclk{flex:none;border-radius:14px;background:#3a3733;color:#ddd;display:flex;align-items:center;justify-content:center;gap:14px;padding:8px 14px;transition:background .15s}
+.vclk.top{transform:rotate(180deg)}
+.vclk .clkt{font-size:clamp(34px,11vw,52px);font-weight:800;font-variant-numeric:tabular-nums}
+.vclk .clkm{font-size:13px;opacity:.75}
+.vclk.run{background:#81b64c;color:#fff}.vclk.low.run{background:#e0a030}.vclk.flag{background:#d23c3c;color:#fff}
+.vmid{flex:1;display:flex;flex-direction:column;gap:6px;min-height:0;justify-content:center}
+.vbwrap{position:relative;width:min(100%,58vh);margin:0 auto}
+.vboard{width:100%!important;height:auto!important;aspect-ratio:1;display:grid;grid-template-columns:repeat(8,1fr);border-radius:6px;overflow:hidden;background-size:cover}
+.vboard .sel{box-shadow:inset 0 0 0 3px #f5d000}.vboard .lm{box-shadow:inset 0 0 0 100px rgba(255,255,51,.38)}
+#vStart{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:14px 20px;font-size:17px;box-shadow:0 6px 20px rgba(0,0,0,.5)}
+.vstat{font-size:15px;color:#ddd;text-align:center;min-height:22px}.vstat b{color:#fff;font-size:18px}
 .clkpre{background:var(--panel2);border:2px solid transparent;border-radius:10px;padding:10px 4px;color:#fff;font-weight:700;font-size:16px;display:flex;flex-direction:column;align-items:center;gap:2px}
 .clkpre small{font-size:11px;color:var(--muted);font-weight:500}.clkpre.on{border-color:var(--accent)}
 .clkcustom{display:flex;gap:12px;margin:6px 0 14px}.clkcustom label{flex:1;font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
@@ -272,7 +280,9 @@ body:not([data-view=home]) header h1 .t{display:none}
 .homehead h2{font-size:20px;margin:0}
 .accinfo{font-size:13px;color:var(--muted);margin:0 2px 6px}
 .accinfo button{color:var(--accent);font-weight:700;padding:0;font-size:13px}
-.homeact{margin-top:14px}.homeact .iconbtn{flex:1 1 auto}
+.homeact{margin-top:14px}
+.clkcard{display:flex;align-items:center;gap:14px;width:100%;margin:14px 0 6px;padding:18px 16px;border:0;border-radius:14px;background:var(--panel);color:#fff;text-align:left}
+.clkcard .clkico{font-size:34px;line-height:1}.clkcard b{display:block;font-size:18px}.clkcard small{display:block;color:var(--muted);font-size:13px;margin-top:2px}.clkcard>span:nth-child(2){flex:1}.clkcard .clkarr{font-size:28px;color:var(--muted)}.homeact .iconbtn{flex:1 1 auto}
 .glist .g .top{display:flex;align-items:baseline;gap:6px}
 .glist .g .ago{margin-left:auto;color:var(--muted);font-size:12px;font-weight:600;white-space:nowrap}
 .srcchip{display:inline-block;font-size:11px;font-weight:800;padding:1px 6px;border-radius:4px;margin-right:4px}
@@ -310,7 +320,8 @@ body:not([data-view=home]) header h1 .t{display:none}
     <div class="card homecard" id="trainHome" style="display:none"></div>
     <div class="card homecard" id="trendCard" style="display:none"></div>
     <div class="card homecard" id="openCard" style="display:none"></div>
-    <div class="row homeact"><button class="iconbtn" id="bHomePgn">PGN einfügen</button><button class="iconbtn" id="bHomeSaved">Gespeicherte Analysen</button><button class="iconbtn" id="bHomeFree">Analysebrett</button><button class="iconbtn" id="bHomeClock">Schachuhr</button></div>
+    <div class="row homeact"><button class="iconbtn" id="bHomePgn">PGN einfügen</button><button class="iconbtn" id="bHomeSaved">Gespeicherte Analysen</button><button class="iconbtn" id="bHomeFree">Analysebrett</button></div>
+    <button class="clkcard" id="bHomeClock"><span class="clkico">⏱</span><span><b>Schachuhr</b><small>Für Partien am Brett – klassisch oder mit Spracheingabe</small></span><span class="clkarr">›</span></button>
   </div>
   <div id="viewReview" style="display:none"></div>
   <div class="layout" id="viewBoard" style="display:none">
@@ -368,31 +379,38 @@ body:not([data-view=home]) header h1 .t{display:none}
 </div></div>
 
 <div id="clockView">
-  <div id="clkSetup">
-    <h2>Schachuhr <button class="iconbtn" id="clkClose">✕</button></h2>
+  <div id="clkMode" class="clkpage">
+    <h2>Schachuhr <button class="iconbtn" data-clkclose>✕</button></h2>
+    <button class="clkmode" data-mode="classic"><b>⏱ Klassische Uhr</b><small>Zwei große Uhrhälften – nach dem Zug auf die eigene Hälfte tippen.</small></button>
+    <button class="clkmode" data-mode="voice"><b>🎤 Uhr mit Spracheingabe</b><small>Züge ansagen, die Uhr wechselt von selbst. In der Mitte siehst du das Brett, am Ende wird die Partie analysiert.</small></button>
+  </div>
+  <div id="clkSetup" class="clkpage" style="display:none">
+    <h2><button class="iconbtn" id="clkBack">‹</button><span id="clkSetTitle"></span><button class="iconbtn" data-clkclose>✕</button></h2>
     <div class="clkpresets" id="clkPresets"></div>
     <div class="clkcustom"><label>Minuten <input type="number" id="clkMin" min="0" max="180" step="1" inputmode="numeric"></label><label>+ Sekunden pro Zug <input type="number" id="clkInc" min="0" max="60" step="1" inputmode="numeric"></label></div>
+    <div class="clknames" id="clkNames"><label>Weiß (unten) <input id="clkWName" autocomplete="off"></label><label>Schwarz (oben) <input id="clkBName" autocomplete="off"></label></div>
     <button class="primary" id="clkStart">Uhr starten</button>
-    <div class="set"><label>Züge ansagen<small>Nach deinem Zug z. B. „Springer f3“ sagen, dann die Uhr drücken. Am Ende wird die Partie analysiert.</small></label><button class="toggle" id="clkDict"></button></div>
-    <div class="clknames" id="clkNames"><label>Weiß <input id="clkWName" autocomplete="off"></label><label>Schwarz <input id="clkBName" autocomplete="off"></label></div>
-    <div class="voicetest"><button class="iconbtn" id="vTest">🎤 Spracheingabe testen</button><div class="hint" id="vOut"></div></div>
-    <div class="hint">Leg das Handy zwischen euch. Wer am Zug war, tippt nach seinem Zug auf seine Hälfte. Schwarz tippt zuerst, damit die Uhr von Weiß startet.</div>
+    <div class="hint" id="clkHint"></div>
+    <div class="voicetest" id="vTestBox"><button class="iconbtn" id="vTest">🎤 Spracheingabe testen</button><div class="hint" id="vOut"></div></div>
   </div>
   <div id="clkPlay" style="display:none">
     <button class="clkside top" id="clkB"><span class="clkt"></span><span class="clkm"></span></button>
-    <div class="clkmid">
-      <div class="dict" id="dictBox" style="display:none">
-        <div class="dboard" id="dBoard"></div>
-        <div class="dside"><div class="dstat" id="dStat">🎤</div><div class="dopts" id="dOpts"></div>
-          <div class="drow"><button class="iconbtn" id="dUndo">↶ Zurück</button><button class="primary" id="dEnd">Beenden &amp; analysieren</button></div></div>
-      </div>
-      <div class="clkbar"><button class="iconbtn" id="clkPause">Pause</button><button class="iconbtn" id="clkReset">Neu</button><button class="iconbtn" id="clkSound">Ton</button><button class="iconbtn" id="clkExit">✕</button></div>
-    </div>
-    <div class="dres" id="dRes" style="display:none"><div class="dresbox"><h3>Wie ist die Partie ausgegangen?</h3>
-      <button class="iconbtn" data-res="1-0">Weiß gewinnt</button><button class="iconbtn" data-res="1/2-1/2">Remis</button><button class="iconbtn" data-res="0-1">Schwarz gewinnt</button>
-      <button class="iconbtn" data-res="cancel">Weiterspielen</button></div></div>
+    <div class="clkbar"><button class="iconbtn" id="clkPause">Pause</button><button class="iconbtn" id="clkReset">Neu</button><button class="iconbtn" id="clkSound">Ton</button><button class="iconbtn" id="clkExit">✕</button></div>
     <button class="clkside bottom" id="clkW"><span class="clkt"></span><span class="clkm"></span></button>
   </div>
+  <div id="clkVoice" style="display:none">
+    <div class="vclk top" id="vB"><span class="clkt"></span><span class="clkm"></span></div>
+    <div class="vmid">
+      <div class="vbwrap"><div class="vboard" id="dBoard"></div><button class="primary" id="vStart">▶ Start – Uhr von Weiß läuft</button></div>
+      <div class="vstat" id="dStat"></div>
+      <div class="dopts" id="dOpts"></div>
+      <div class="drow"><button class="iconbtn" id="vPause">Pause</button><button class="iconbtn" id="dUndo">↶ Zurück</button><button class="primary" id="dEnd">Beenden &amp; analysieren</button><button class="iconbtn" id="vExit">✕</button></div>
+    </div>
+    <div class="vclk bottom" id="vW"><span class="clkt"></span><span class="clkm"></span></div>
+  </div>
+  <div class="dres" id="dRes" style="display:none"><div class="dresbox"><h3>Wie ist die Partie ausgegangen?</h3>
+    <button class="iconbtn" data-res="1-0">Weiß gewinnt</button><button class="iconbtn" data-res="1/2-1/2">Remis</button><button class="iconbtn" data-res="0-1">Schwarz gewinnt</button>
+    <button class="iconbtn" data-res="cancel">Weiterspielen</button></div></div>
 </div>
 <div class="modal" id="mSettings"><div class="sheet">
   <h2>Einstellungen <button class="iconbtn" data-close>✕</button></h2>
