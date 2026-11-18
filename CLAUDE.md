@@ -137,7 +137,7 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
   geprüft 17.11.2026, nicht-freie bzw. unklare Sets bewusst ausgelassen).
 - Töne: `S.soundSet` = wood/click/soft/digital/glass (im Code synthetisiert, `Synth`) oder custom (eigene Dateien wie bisher).
   Bestehende Nutzer mit eigenen Tönen starten mit „custom“. Beim Umschalten kurze Hörprobe (Zug + Schlag).
-- Schachuhr: große Karte ganz unten auf dem Startbildschirm (`#bHomeClock`). Erst Auswahl (`#clkMode`): „Klassische Uhr“
+- Schachuhr: große Karte auf dem Startbildschirm direkt unter „Deine Eröffnungen“ (`#bHomeClock`). Erst Auswahl (`#clkMode`): „Klassische Uhr“
   oder „Uhr mit Spracheingabe“, dann Bedenkzeit (`#clkSetup`, Vorgaben 1+0 … 90+30 oder eigene, `S.clockTC`).
   `Clock` in `app.js` (Zeit über `performance.now()`, Wake Lock iOS 16.4+, `Clock.moved(side)` = Zug + Inkrement + Wechsel).
   Klassisch (`#clkPlay`): zwei große Hälften (obere 180° gedreht), Tippen auf die eigene Hälfte (`pointerdown`), Schwarz

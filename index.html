@@ -284,7 +284,7 @@ body:not([data-view=home]) header h1 .t{display:none}
 .accinfo{font-size:13px;color:var(--muted);margin:0 2px 6px}
 .accinfo button{color:var(--accent);font-weight:700;padding:0;font-size:13px}
 .homeact{margin-top:14px}
-.clkcard{display:flex;align-items:center;gap:14px;width:100%;margin:14px 0 6px;padding:18px 16px;border:0;border-radius:14px;background:var(--panel);color:#fff;text-align:left}
+.clkcard{display:flex;align-items:center;gap:14px;width:100%;margin:10px 0 0;padding:18px 16px;border:0;border-radius:14px;background:var(--panel);color:#fff;text-align:left}
 .clkcard .clkico{font-size:34px;line-height:1}.clkcard b{display:block;font-size:18px}.clkcard small{display:block;color:var(--muted);font-size:13px;margin-top:2px}.clkcard>span:nth-child(2){flex:1}.clkcard .clkarr{font-size:28px;color:var(--muted)}.homeact .iconbtn{flex:1 1 auto}
 .glist .g .top{display:flex;align-items:baseline;gap:6px}
 .glist .g .ago{margin-left:auto;color:var(--muted);font-size:12px;font-weight:600;white-space:nowrap}
@@ -323,8 +323,8 @@ body:not([data-view=home]) header h1 .t{display:none}
     <div class="card homecard" id="trainHome" style="display:none"></div>
     <div class="card homecard" id="trendCard" style="display:none"></div>
     <div class="card homecard" id="openCard" style="display:none"></div>
-    <div class="row homeact"><button class="iconbtn" id="bHomePgn">PGN einfügen</button><button class="iconbtn" id="bHomeSaved">Gespeicherte Analysen</button><button class="iconbtn" id="bHomeFree">Analysebrett</button></div>
     <button class="clkcard" id="bHomeClock"><span class="clkico">⏱</span><span><b>Schachuhr</b><small>Für Partien am Brett – klassisch oder mit Spracheingabe</small></span><span class="clkarr">›</span></button>
+    <div class="row homeact"><button class="iconbtn" id="bHomePgn">PGN einfügen</button><button class="iconbtn" id="bHomeSaved">Gespeicherte Analysen</button><button class="iconbtn" id="bHomeFree">Analysebrett</button></div>
   </div>
   <div id="viewReview" style="display:none"></div>
   <div class="layout" id="viewBoard" style="display:none">
@@ -426,7 +426,7 @@ body:not([data-view=home]) header h1 .t{display:none}
   </div>
 </div></div>
 
-<script>window.SA_VERSION="b2d621c9";window.SA_BUILT="18.11.2026 03:11";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
+<script>window.SA_VERSION="db62ddb3";window.SA_BUILT="18.11.2026 03:15";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
 <script>// Minimal chess core: board, legal moves, SAN, FEN, PGN. Square 0 = a8, 63 = h1.
 const Chess = (() => {
   const FILES = 'abcdefgh';
