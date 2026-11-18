@@ -145,7 +145,10 @@ Das Repository ist öffentlich. Der Nutzer will ausdrücklich keinerlei rechtlic
 - Spracheingabe-Modus (`#clkVoice`, Namen `S.clockNames`): oben/unten schmale Uhren, in der Mitte großes Brett (aktuelle
   Brettfarbe/Figuren). „Start“ startet die Uhr von Weiß (und entsperrt die Sprachausgabe). Züge werden angesagt, die Uhr
   wechselt nach erkanntem Zug selbst (kein Tippen). `src/voice.js` (`Voice.match`, `normalise`) wandelt gesprochenes Deutsch
-  in legale Züge („Springer f drei“, „die vier“, „Läufer schlägt e5“, „kurze Rochade“, „a8 Dame“, „zurück“).
+  in legale Züge – Umgangssprache („Springer f drei“, „die vier“, „Läufer schlägt e5“, „kurze Rochade“, „a8 Dame“, „zurück“)
+  und offizielle Notation (K D T L S, auch gesprochen „es f3“/„el e2“; „Sbd2“, „T1a3“, „cxd5“, „e schlägt d5“, „Sb1-d2“,
+  „0-0“/„null null“, „0-0-0“, „a8D“/„a8=S“, „+“/„#“ werden ignoriert). Unvollständige Angaben werden über die legalen Züge
+  ergänzt; nur bei echter Mehrdeutigkeit Rückfrage.
   `Dict` in `app.js`: Web Speech API (de-DE, continuous, 5 Alternativen, Neustart bei `onend`), Rückfragen per
   Sprachausgabe (`speechSynthesis`, Mikrofon pausiert solange): unklar aber schachartig → „Nochmal bitte.“ / „Der Zug geht
   nicht.“, sonstiges Gerede wird ignoriert; mehrdeutig → „Springer von F 3 oder B 1?“ und Antwort („b eins“, „b“, „f3“)

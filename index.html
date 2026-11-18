@@ -426,7 +426,7 @@ body:not([data-view=home]) header h1 .t{display:none}
   </div>
 </div></div>
 
-<script>window.SA_VERSION="db62ddb3";window.SA_BUILT="18.11.2026 03:15";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
+<script>window.SA_VERSION="24629361";window.SA_BUILT="18.11.2026 03:18";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
 <script>// Minimal chess core: board, legal moves, SAN, FEN, PGN. Square 0 = a8, 63 = h1.
 const Chess = (() => {
   const FILES = 'abcdefgh';
@@ -1012,15 +1012,25 @@ const Voice = (() => {
     [/springer|pferd|spring\w*|ross/, 'n'], [/l(ä|ae|e)ufer|leufer|laufer/, 'b'], [/turm|thurm|tour/, 'r'],
     [/dame|königin|koenigin/, 'q'], [/k(ö|oe|o)nig/, 'k'], [/bauer|bauern/, 'p'],
   ];
-  const NUM = { eins: 1, ein: 1, eine: 1, zwei: 2, zwo: 2, drei: 3, vier: 4, fünf: 5, fuenf: 5, sechs: 6, sieben: 7, acht: 8 };
+  const NUM = { null: 0, eins: 1, ein: 1, eine: 1, zwei: 2, zwo: 2, drei: 3, vier: 4, fünf: 5, fuenf: 5, sechs: 6, sieben: 7, acht: 8 };
   // spoken letter names → file letter
   const LETTER = { a: 'a', ah: 'a', b: 'b', be: 'b', beh: 'b', c: 'c', ce: 'c', ze: 'c', zeh: 'c', tse: 'c', d: 'd', de: 'd', die: 'd', dee: 'd', der: 'd', e: 'e', eh: 'e', ee: 'e', f: 'f', ef: 'f', eff: 'f', g: 'g', ge: 'g', geh: 'g', h: 'h', ha: 'h', hah: 'h' };
 
+  // official German piece letters (K D T L S), also glued to the square ("Sf3", "Lxe5") or spoken ("es", "el", "ka", "te")
+  const CODE = { K: 'k', D: 'q', T: 'r', L: 'b', S: 'n' };
   function normalise(raw) {
-    let t = ' ' + raw.toLowerCase().replace(/[.,!?;:]/g, ' ').replace(/-/g, ' ') + ' ';
+    let r0 = ' ' + raw + ' ';
+    r0 = r0.replace(/([a-h][18])\s*=?\s*([DTLS])\b/g, (m, sq, c) => ` ${sq} §${CODE[c]} `); // promotion "a8D", "e8=S"
+    r0 = r0.replace(/\b([KDTLS])\s*x?\s*(?=[a-h]\s*[1-8]\b|[a-h][1-8]\b|x)/g, (m, c) => ` §${CODE[c]} `); // capital code letter
+    r0 = r0.replace(/\b([KDTLS])([a-h])x?([a-h][1-8])\b/g, (m, c, f, sq) => ` §${CODE[c]} ${f} ${sq} `);  // "Sbd2"
+    r0 = r0.replace(/\b([KDTLS])([1-8])x?([a-h][1-8])\b/g, (m, c, n, sq) => ` §${CODE[c]} ${n} ${sq} `);  // "T1a3"
+    r0 = r0.replace(/\b([a-h])x([a-h][1-8])\b/gi, ' $1 x $2 ');                                       // "cxd5"
+    r0 = r0.replace(/\b([a-h][1-8])\s*[-–]\s*([a-h][1-8])\b/gi, ' $1 $2 ');                              // "b1-d2"
+    let t = ' ' + r0.toLowerCase().replace(/[.,!?;:+#]/g, ' ').replace(/[-–]/g, ' ') + ' ';
     t = t.replace(/ß/g, 'ss');
-    // numbers as words → digits
     for (const [w, n] of Object.entries(NUM)) t = t.replace(new RegExp(`\\b${w}\\b`, 'g'), String(n));
+    t = t.replace(/\b(es|ess)\s+(?=[a-h]\s*[1-8]|[a-h][1-8])/g, ' §n ').replace(/\b(el|ell)\s+(?=[a-h]\s*[1-8]|[a-h][1-8])/g, ' §b ')
+      .replace(/\b(ka|kah)\s+(?=[a-h]\s*[1-8]|[a-h][1-8])/g, ' §k ').replace(/\b(te|tee|teh)\s+(?=[a-h]\s*[1-8]|[a-h][1-8])/g, ' §r ');
     // "d4" may come as "d 4", "de 4", "die 4", "D4"
     const toks = t.trim().split(/\s+/);
     const out = [];
@@ -1041,11 +1051,13 @@ const Voice = (() => {
     const r = { piece: null, to: null, fromFile: null, fromRank: null, fromSq: null, capture: /schl(ä|ae)gt|nimmt|schlagen|x/.test(text), promo: null };
     if (/zur(ü|ue)ck|r(ü|ue)ckg(ä|ae)ngig|korrektur|falsch/.test(text)) return { undo: true };
     if (/rochade|rochiert/.test(text)) { r.castle = /lang|gro(ss|ß)/.test(text) ? 'long' : 'short'; return r; }
-    // promotion: "… umwandlung in dame", "… wird dame"
+    const compact = toks.join('');
+    if (/^[0o]{2,3}$/.test(compact)) { r.castle = compact.length === 3 ? 'long' : 'short'; return r; } // "0-0", "O-O-O", "null null"
     const sqs = toks.filter(w => /^[a-h][1-8]$/.test(w));
     const lastSq = sqs.length ? toks.lastIndexOf(sqs[sqs.length - 1]) : -1;
     // piece words: before the target square = the moving piece, after it = promotion piece ("a8 Dame", "a8 Umwandlung in Springer")
     toks.forEach((w, i) => {
+      if (/^§[kqrbn]$/.test(w)) { if (lastSq >= 0 && i > lastSq) { if (!r.promo && w[1] !== 'k') r.promo = w[1]; } else if (!r.piece) r.piece = w[1]; return; }
       const hit = PIECE.find(([re]) => re.test(w));
       if (!hit) return;
       if (lastSq >= 0 && i > lastSq) { if (hit[1] !== 'k' && hit[1] !== 'p' && !r.promo) r.promo = hit[1]; }
@@ -1054,7 +1066,8 @@ const Voice = (() => {
     if (sqs.length) r.to = sqs[sqs.length - 1];
     if (sqs.length >= 2) r.fromSq = sqs[sqs.length - 2];
     // disambiguation: a lone file letter or rank digit right before the target ("Springer b d2", "Turm 1 e1")
-    const ti = toks.lastIndexOf(r.to);
+    let ti = toks.lastIndexOf(r.to);
+    while (ti > 0 && /^(x|schl(ä|ae)gt|nimmt|nach|auf)$/.test(toks[ti - 1])) ti--; // "e schlägt d5", "Springer b nach d2"
     if (ti > 0) {
       const prev = toks[ti - 1];
       if (LETTER[prev] && LETTER[prev] !== undefined && !sqs.includes(prev)) r.fromFile = LETTER[prev];
