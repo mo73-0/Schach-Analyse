@@ -1731,7 +1731,7 @@ const Dict = {
     let h = '';
     for (let s = 0; s < 64; s++) {
       const r = s >> 3, f = s & 7, light = (r + f) % 2 === 0, pc = this.pos.b[s];
-      h += `<div data-ds="${s}" class="sq ${light ? 'l' : 'd'}${s === this.sel ? ' sel' : ''}${last && (s === last.from || s === last.to) ? ' lm' : ''}"${boardImg ? '' : ` style="background-color:${light ? l : dk}"`}>${pc ? `<div class="pc" style="background-image:url('${pieceUrl(pc)}')"></div>` : ''}</div>`;
+      h += `<div data-ds="${s}" class="sq ${light ? 'l' : 'd'}${s === this.sel ? ' sel' : ''}${last && (s === last.from || s === last.to) ? ' lm' : ''}"${boardImg ? '' : ` style="background-color:${light ? l : dk}"`}>${f === 0 ? `<span class="co r"${boardImg ? '' : ` style="color:${light ? dk : l}"`}>${8 - r}</span>` : ''}${r === 7 ? `<span class="co f"${boardImg ? '' : ` style="color:${light ? dk : l}"`}>${'abcdefgh'[f]}</span>` : ''}${pc ? `<div class="pc" style="background-image:url('${pieceUrl(pc)}')"></div>` : ''}</div>`;
     }
     const bd = $('dBoard');
     bd.innerHTML = h;

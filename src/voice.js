@@ -4,21 +4,22 @@
 const Voice = (() => {
   const C = typeof Chess !== 'undefined' ? Chess : require('./chess.js');
   const PIECE = [
-    [/springer|pferd|spring\w*|ross/, 'n'], [/l(ä|ae|e)ufer|leufer|laufer/, 'b'], [/turm|thurm|tour/, 'r'],
-    [/dame|königin|koenigin/, 'q'], [/k(ö|oe|o)nig/, 'k'], [/bauer|bauern/, 'p'],
+    [/springer|pferd|spring\w*|ross|^knight|^night|^nite|^horse/, 'n'], [/l(ä|ae|e)ufer|leufer|laufer|^bishop|^bischof/, 'b'],
+    [/turm|thurm|tour|^rook|^rock$|^ruck$/, 'r'], [/dame|königin|koenigin|^queen|^quinn/, 'q'], [/k(ö|oe|o)nig|^king/, 'k'],
+    [/bauer|bauern|^pawn|^porn$|^pon$/, 'p'],
   ];
-  const NUM = { null: 0, eins: 1, ein: 1, eine: 1, zwei: 2, zwo: 2, drei: 3, vier: 4, fünf: 5, fuenf: 5, sechs: 6, sieben: 7, acht: 8 };
+  const NUM = { null: 0, zero: 0, one: 1, two: 2, three: 3, four: 4, for: 4, five: 5, six: 6, seven: 7, eight: 8, eins: 1, ein: 1, eine: 1, zwei: 2, zwo: 2, drei: 3, vier: 4, fünf: 5, fuenf: 5, sechs: 6, sieben: 7, acht: 8 };
   // spoken letter names → file letter
-  const LETTER = { a: 'a', ah: 'a', b: 'b', be: 'b', beh: 'b', c: 'c', ce: 'c', ze: 'c', zeh: 'c', tse: 'c', d: 'd', de: 'd', die: 'd', dee: 'd', der: 'd', e: 'e', eh: 'e', ee: 'e', f: 'f', ef: 'f', eff: 'f', g: 'g', ge: 'g', geh: 'g', h: 'h', ha: 'h', hah: 'h' };
+  const LETTER = { bee: 'b', see: 'c', sea: 'c', dee: 'd', eff: 'f', gee: 'g', aitch: 'h', a: 'a', ah: 'a', b: 'b', be: 'b', beh: 'b', c: 'c', ce: 'c', ze: 'c', zeh: 'c', tse: 'c', d: 'd', de: 'd', die: 'd', dee: 'd', der: 'd', e: 'e', eh: 'e', ee: 'e', f: 'f', ef: 'f', eff: 'f', g: 'g', ge: 'g', geh: 'g', h: 'h', ha: 'h', hah: 'h' };
 
   // official German piece letters (K D T L S), also glued to the square ("Sf3", "Lxe5") or spoken ("es", "el", "ka", "te")
-  const CODE = { K: 'k', D: 'q', T: 'r', L: 'b', S: 'n' };
+  const CODE = { K: 'k', D: 'q', T: 'r', L: 'b', S: 'n', Q: 'q', R: 'r', N: 'n', B: 'b' }; // German + English letters
   function normalise(raw) {
     let r0 = ' ' + raw + ' ';
-    r0 = r0.replace(/([a-h][18])\s*=?\s*([DTLS])\b/g, (m, sq, c) => ` ${sq} §${CODE[c]} `); // promotion "a8D", "e8=S"
-    r0 = r0.replace(/\b([KDTLS])\s*x?\s*(?=[a-h]\s*[1-8]\b|[a-h][1-8]\b|x)/g, (m, c) => ` §${CODE[c]} `); // capital code letter
-    r0 = r0.replace(/\b([KDTLS])([a-h])x?([a-h][1-8])\b/g, (m, c, f, sq) => ` §${CODE[c]} ${f} ${sq} `);  // "Sbd2"
-    r0 = r0.replace(/\b([KDTLS])([1-8])x?([a-h][1-8])\b/g, (m, c, n, sq) => ` §${CODE[c]} ${n} ${sq} `);  // "T1a3"
+    r0 = r0.replace(/([a-h][18])\s*=?\s*([DTLSQRNB])\b/g, (m, sq, c) => ` ${sq} §${CODE[c]} `); // promotion "a8D", "e8=S"
+    r0 = r0.replace(/\b([KDTLSQRNB])\s*x?\s*(?=[a-h]\s*[1-8]\b|[a-h][1-8]\b|x)/g, (m, c) => ` §${CODE[c]} `); // capital code letter
+    r0 = r0.replace(/\b([KDTLSQRNB])([a-h])x?([a-h][1-8])\b/g, (m, c, f, sq) => ` §${CODE[c]} ${f} ${sq} `);  // "Sbd2"
+    r0 = r0.replace(/\b([KDTLSQRNB])([1-8])x?([a-h][1-8])\b/g, (m, c, n, sq) => ` §${CODE[c]} ${n} ${sq} `);  // "T1a3"
     r0 = r0.replace(/\b([a-h])x([a-h][1-8])\b/gi, ' $1 x $2 ');                                       // "cxd5"
     r0 = r0.replace(/\b([a-h][1-8])\s*[-–]\s*([a-h][1-8])\b/gi, ' $1 $2 ');                              // "b1-d2"
     let t = ' ' + r0.toLowerCase().replace(/[.,!?;:+#]/g, ' ').replace(/[-–]/g, ' ') + ' ';
@@ -43,9 +44,9 @@ const Voice = (() => {
   // Parse → { castle, piece, to, fromFile, fromRank, fromSq, capture, promo, undo }
   function parse(raw) {
     const toks = normalise(raw), text = ' ' + toks.join(' ') + ' ';
-    const r = { piece: null, to: null, fromFile: null, fromRank: null, fromSq: null, capture: /schl(ä|ae)gt|nimmt|schlagen|x/.test(text), promo: null };
-    if (/zur(ü|ue)ck|r(ü|ue)ckg(ä|ae)ngig|korrektur|falsch/.test(text)) return { undo: true };
-    if (/rochade|rochiert/.test(text)) { r.castle = /lang|gro(ss|ß)/.test(text) ? 'long' : 'short'; return r; }
+    const r = { piece: null, to: null, fromFile: null, fromRank: null, fromSq: null, capture: /schl(ä|ae)gt|nimmt|schlagen|takes|captures|x/.test(text), promo: null };
+    if (/zur(ü|ue)ck|r(ü|ue)ckg(ä|ae)ngig|korrektur|falsch|\bundo\b|take ?back/.test(text)) return { undo: true };
+    if (/rochade|rochiert|castle|castles|castling/.test(text)) { r.castle = /lang|gro(ss|ß)|long|queen ?side/.test(text) ? 'long' : 'short'; return r; }
     const compact = toks.join('');
     if (/^[0o]{2,3}$/.test(compact)) { r.castle = compact.length === 3 ? 'long' : 'short'; return r; } // "0-0", "O-O-O", "null null"
     const sqs = toks.filter(w => /^[a-h][1-8]$/.test(w));
@@ -62,7 +63,7 @@ const Voice = (() => {
     if (sqs.length >= 2) r.fromSq = sqs[sqs.length - 2];
     // disambiguation: a lone file letter or rank digit right before the target ("Springer b d2", "Turm 1 e1")
     let ti = toks.lastIndexOf(r.to);
-    while (ti > 0 && /^(x|schl(ä|ae)gt|nimmt|nach|auf)$/.test(toks[ti - 1])) ti--; // "e schlägt d5", "Springer b nach d2"
+    while (ti > 0 && /^(x|schl(ä|ae)gt|nimmt|nach|auf|takes|captures|to)$/.test(toks[ti - 1])) ti--; // "e schlägt d5", "Springer b nach d2"
     if (ti > 0) {
       const prev = toks[ti - 1];
       if (LETTER[prev] && LETTER[prev] !== undefined && !sqs.includes(prev)) r.fromFile = LETTER[prev];
